@@ -1,13 +1,4 @@
 # zinro-heroku
 
-Heroku版
---
-
-
-インストール
-==
-
-
-
-
-
+* Heroku Edition
+* Node.js Socket.IO Vue.js 
