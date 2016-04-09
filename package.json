@@ -1,7 +1,7 @@
 {
-  "name": "node-js-getting-started",
-  "version": "0.1.5",
-  "description": "A sample Node.js app using Express 4",
+  "name": "zinro",
+  "version": "0.0.1",
+  "description": "Zinro App Heroku Edition",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
@@ -15,7 +15,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/heroku/node-js-getting-started"
+    "url": "https://github.com/kuramitsu/zinro-heroku"
   },
   "keywords": [
     "node",
