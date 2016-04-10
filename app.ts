@@ -1,4 +1,5 @@
 /// <reference path="typings/node/node.d.ts" />
+/// <reference path="typings/socket.io/socket.io.d.ts" />
 
 //declare function require(name:string);
 
@@ -6,7 +7,7 @@ var ECT = require('ect');
 var express = require('express');
 var app = express();
 var server = require('http').Server(app);
-var io = require('socket.io')(server);
+var io:SocketIO.Server = require('socket.io')(server);
 var bodyParser = require('body-parser');
 
 var static_url:string = (process.env.STATIC_URL || __dirname);
@@ -18,14 +19,19 @@ app.set('view engine', 'ect');
 
 // app.use(static_url, express.static('/public'));
 app.use(express.static(`${__dirname}/public`));
+app.use(express.static(`${__dirname}/bower_components`));
 
-// app.use(static_url, express.static('bower_components'));
 // app.use(static_url, express.static('static'));
 
 // http://qiita.com/K_ichi/items/c70bf4b08467717460d5
 // https://github.com/expressjs/body-parser
 app.use(bodyParser.urlencoded({extended: false}));
 app.use(bodyParser.json());
+
+
+// チャット関連
+var io_game = io.of('game');
+
 
 
 app.get('/', function(request, response) {

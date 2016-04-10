@@ -1,0 +1,26 @@
+{
+  "name": "zinro",
+  "description": "Zinro App Heroku Edition",
+  "main": "app.js",
+  "authors": [
+    "t-kuramitsu"
+  ],
+  "license": "MIT",
+  "keywords": [
+    "node",
+    "heroku",
+    "express"
+  ],
+  "homepage": "https://github.com/kuramitsu/zinro-heroku",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "vue": "^1.0.21",
+    "bootstrap": "^3.3.6"
+  }
+}

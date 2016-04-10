@@ -9,8 +9,10 @@ var port = (process.env.PORT || 5000);
 app.engine('ect', ECT({ watch: true, root: __dirname + "/views", ext: '.ect' }).render);
 app.set('view engine', 'ect');
 app.use(express.static(__dirname + "/public"));
+app.use(express.static(__dirname + "/bower_components"));
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
+var io_game = io.of('game');
 app.get('/', function (request, response) {
     response.render('pages/index');
 });
