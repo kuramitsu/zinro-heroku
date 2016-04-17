@@ -16,6 +16,9 @@ var io_game = io.of('game');
 app.get('/', function (request, response) {
     response.render('pages/index');
 });
+app.get('/chat', function (request, response) {
+    response.render('pages/chat');
+});
 server.listen(port, function () {
     var port = server.address().port;
     console.log('Example app listening port %s', port);

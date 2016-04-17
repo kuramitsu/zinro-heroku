@@ -1,5 +1,4 @@
-/// <reference path="typings/node/node.d.ts" />
-/// <reference path="typings/socket.io/socket.io.d.ts" />
+/// <reference path="typings/main.d.ts" />
 
 //declare function require(name:string);
 
@@ -12,6 +11,7 @@ var bodyParser = require('body-parser');
 
 var static_url:string = (process.env.STATIC_URL || __dirname);
 var port:number = (process.env.PORT || 5000);
+
 
 // http://qiita.com/sukobuto/items/b0be22bfebd721854e0b
 app.engine('ect', ECT({ watch: true, root: `${__dirname}/views`, ext: '.ect' }).render);
@@ -33,9 +33,11 @@ app.use(bodyParser.json());
 var io_game = io.of('game');
 
 
-
 app.get('/', function(request, response) {
   response.render('pages/index');
+});
+app.get('/chat', function(request, response) {
+  response.render('pages/chat');
 });
 
 

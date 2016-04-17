@@ -3,17 +3,22 @@
 <head>
   <% include 'partials/header.ect' %>
   <script src="/socket.io/socket.io.js"></script>
+  <script type="text/javascript">
+    Vue.config.delimiters = ['[[', ']]'];
+  </script>
 </head>
 <body>
-
-  <form novalidate id="aform" name="allForm" ng-submit="sendAll()" role="form">
+  <div id="chattest" class="container">
+    <form @submit.prevent.stop="sendAll()" role="form">
       <div class="input-group">
-          <input type="text" class="form-control" name="alltext" ng-model="alltext" required ng-maxlength="512">
-          <span class="input-group-btn">
-              <button type="submit" class="btn btn-primary">投稿</button>
-          </span>
+        <input type="text" class="form-control" v-model="alltext">
+        <span class="input-group-btn">
+          <button type="submit" class="btn btn-primary">投稿</button>
+        </span>
       </div>
-  </form>
-
+    </form>
+    <pre>[[alltext]]</pre>
+  </div>
+  <script src="/js/zinro.js"></script>
 </body>
 </html>
