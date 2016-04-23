@@ -27,11 +27,13 @@
         "typings/browser.d.ts",
         "typings/browser/ambient/express/index.d.ts",
         "typings/browser/ambient/node/index.d.ts",
+        "typings/browser/ambient/socket.io-client/index.d.ts",
         "typings/browser/ambient/socket.io/index.d.ts",
         "typings/browser/ambient/vue/index.d.ts",
         "typings/main.d.ts",
         "typings/main/ambient/express/index.d.ts",
         "typings/main/ambient/node/index.d.ts",
+        "typings/main/ambient/socket.io-client/index.d.ts",
         "typings/main/ambient/socket.io/index.d.ts",
         "typings/main/ambient/vue/index.d.ts"
     ],

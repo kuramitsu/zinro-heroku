@@ -30,7 +30,30 @@ app.use(bodyParser.json());
 
 
 // チャット関連
-var io_game = io.of('game');
+module Zinro {
+  type RoomName = "villager" | "werewolf" | "sharer";
+  function getRoomName(key:RoomName):RoomName {  // 型チェック用
+    return key;
+  }
+  var io_game = io.of('game');
+  io_game.on("connection", function(socket) {
+    function send_msg(room:RoomName, name:string, msg:string) {
+      socket.join(room);
+      io_game.to(room).emit(room, {
+        name: name,
+        msg: msg
+      })
+    }
+    socket.on(getRoomName("villager"), function(data) {
+      send_msg("villager", socket.id, data.msg);
+    })
+  })
+}
+
+
+
+
+
 
 
 app.get('/', function(request, response) {
