@@ -2,7 +2,7 @@ var ECT = require('ect');
 var express = require('express');
 var app = express();
 var server = require('http').Server(app);
-var io = require('socket.io')(server);
+var ios = require('socket.io')(server);
 var bodyParser = require('body-parser');
 var static_url = (process.env.STATIC_URL || __dirname);
 var port = (process.env.PORT || 5000);
@@ -17,7 +17,7 @@ var Zinro;
     function getRoomName(key) {
         return key;
     }
-    var io_game = io.of('game');
+    var io_game = ios.of('game');
     io_game.on("connection", function (socket) {
         function send_msg(room, name, msg) {
             socket.join(room);
@@ -32,7 +32,7 @@ var Zinro;
     });
 })(Zinro || (Zinro = {}));
 app.get('/', function (request, response) {
-    response.render('pages/index');
+    response.render('pages/zinro');
 });
 app.get('/chat', function (request, response) {
     response.render('pages/chat');

@@ -6,7 +6,7 @@ var ECT = require('ect');
 var express = require('express');
 var app = express();
 var server = require('http').Server(app);
-var io:SocketIO.Server = require('socket.io')(server);
+var ios:SocketIO.Server = require('socket.io')(server);
 var bodyParser = require('body-parser');
 
 var static_url:string = (process.env.STATIC_URL || __dirname);
@@ -35,7 +35,7 @@ module Zinro {
   function getRoomName(key:RoomName):RoomName {  // 型チェック用
     return key;
   }
-  var io_game = io.of('game');
+  var io_game = ios.of('game');
   io_game.on("connection", function(socket) {
     function send_msg(room:RoomName, name:string, msg:string) {
       socket.join(room);
@@ -51,13 +51,8 @@ module Zinro {
 }
 
 
-
-
-
-
-
 app.get('/', function(request, response) {
-  response.render('pages/index');
+  response.render('pages/zinro');
 });
 app.get('/chat', function(request, response) {
   response.render('pages/chat');

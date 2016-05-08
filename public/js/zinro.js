@@ -1,3 +1,51 @@
+var ZinroClient;
+(function (ZinroClient) {
+    var Village = (function () {
+        function Village() {
+            this.data = {
+                state: undefined,
+                phase: undefined,
+                timelimit: undefined
+            };
+            this.initialize();
+        }
+        ;
+        Village.prototype.initialize = function () {
+            this.data.state = "廃村";
+            this.data.phase = "吊";
+            this.data.timelimit = 0;
+        };
+        return Village;
+    }());
+    ZinroClient.Village = Village;
+})(ZinroClient || (ZinroClient = {}));
+var ZinroView;
+(function (ZinroView) {
+    var village = new ZinroClient.Village();
+    console.log(village);
+    var vm_header = (new Vue({
+        el: "#navheader",
+        data: {
+            data: village.data,
+            compiled: false
+        },
+        computed: {
+            state: function () {
+                return this.data.state;
+            },
+            phase: function () {
+                return this.data.pahse;
+            },
+            timelimit: function () {
+                return this.data.timelimit;
+            }
+        },
+        compiled: function () {
+            this.compiled = true;
+        }
+    }));
+    console.log(vm_header.data.state);
+})(ZinroView || (ZinroView = {}));
 var gState = {
     msgs: []
 };
