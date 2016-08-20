@@ -15,17 +15,26 @@ app.use(bodyParser.json());
 var Zinro;
 (function (Zinro) {
     var Villager = (function () {
-        function Villager(name, role) {
+        function Villager(key, name, role) {
+            this.key = key;
             this.name = name;
             this.role = role;
             this.alive = true;
         }
         ;
+        Villager.prototype.getStatus = function (zinrokey) {
+            return {
+                name: this.name,
+                alive: this.alive,
+                role: (zinrokey == this.key) ? this.role : null
+            };
+        };
         return Villager;
     }());
     var Village = (function () {
-        function Village(name) {
+        function Village(name, admin) {
             this.name = name;
+            this.admin = admin;
             this.msgtbl = {
                 villager: [],
                 werewolf: [],
@@ -72,17 +81,38 @@ var Zinro;
             this.msgtbl.werewolf = [];
             this.msgtbl.sharer = [];
         };
-        Village.prototype.getStatus = function () {
+        Village.prototype.getStatus = function (zinrokey) {
             return {
+                name: this.name,
                 state: this.state,
                 phase: this.phase,
-                timelimit: this.timelimit
+                timelimit: this.timelimit,
+                admin: (zinrokey == this.admin) ? true : false
             };
         };
         ;
         Village.prototype.getVillager = function (key) {
-            var v = new Villager("takuma", "村人");
+            var v = new Villager("", "takuma", "村人");
             return v;
+        };
+        ;
+        Village.prototype.addVillager = function (key, name) {
+            if (this.keymap.hasOwnProperty(key) || this.namemap.hasOwnProperty(name)) {
+                return null;
+            }
+            var role = this.getRole();
+            if (!role) {
+                return null;
+            }
+            var v = new Villager(key, name, role);
+            this.villagers.push(v);
+            this.keymap[key] = v;
+            this.namemap[name] = v;
+            return v;
+        };
+        ;
+        Village.prototype.getRole = function () {
+            return "村人";
         };
         ;
         Village.prototype.checkChatUser = function (room, villager) {
@@ -111,23 +141,67 @@ var Zinro;
     var Country = (function () {
         function Country(name) {
             this.name = name;
-            this.vtbl = {};
+            this.initialize();
         }
         ;
-        Country.prototype.addVillage = function (name) {
-            if (this.vtbl.hasOwnProperty(name)) {
+        Country.prototype.initialize = function () {
+            this.villages = [];
+            this.namemap = {};
+            this.initSocket();
+        };
+        ;
+        Country.prototype.initSocket = function () {
+            var $$ = this;
+            $$.io = ios.of("/countries/" + this.name);
+            $$.io.on("connection", function (socket) {
+                socket.on("status", function (data) {
+                    console.log(data);
+                    var status = $$.getCountryStatus(data.key);
+                    console.log(status);
+                    socket.json.emit("status", status);
+                });
+            });
+        };
+        ;
+        Country.prototype.addVillage = function (name, admin) {
+            if (this.namemap.hasOwnProperty(name)) {
                 return null;
             }
-            this.vtbl[name] = new Village(name);
-            return this.vtbl[name];
+            var village = new Village(name, admin);
+            this.villages.push(village);
+            this.namemap[name] = village;
+            return village;
         };
-        Country.prototype.deleteVillage = function (name) {
-            delete this.vtbl[name];
+        Country.prototype.deleteVillage = function (name, admin) {
+            var village = this.namemap[name];
+            if (village.admin == admin) {
+                delete this.namemap[name];
+                var idx = this.villages.indexOf(village);
+                if (idx >= 0) {
+                    this.villages.splice(idx, 1);
+                }
+            }
+        };
+        Country.prototype.getVillageStatuses = function (key) {
+            var statuses = [];
+            for (var i = 0, len = this.villages.length; i < len; i++) {
+                var v = this.villages[i];
+                statuses.push(v.getStatus(key));
+            }
+            return statuses;
+        };
+        Country.prototype.getCountryStatus = function (key) {
+            return {
+                name: this.name,
+                villages: this.getVillageStatuses(key)
+            };
         };
         return Country;
     }());
-    var country = new Country("日本");
-    country.addVillage("なかよし村");
+    var country = new Country("人狼国");
+    country.addVillage("素人村", "");
+    country.addVillage("一般村", "");
+    country.addVillage("玄人村", "");
 })(Zinro || (Zinro = {}));
 app.get('/', function (request, response) {
     response.render('pages/zinro');

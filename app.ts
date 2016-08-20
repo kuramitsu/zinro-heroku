@@ -1,4 +1,5 @@
 /// <reference path="typings/main.d.ts" />
+/// <reference path="zinro.d.ts" />
 
 //declare function require(name:string);
 var ECT = require('ect');
@@ -30,48 +31,34 @@ app.use(bodyParser.json());
 
 // チャット関連
 module Zinro {
-  type RoomName = "villager" | "werewolf" | "sharer";
-  type SendMessageData = {
-    village: string,
-    room: RoomName;
-    key: string;
-    text: string;
-  }
-  type ReceivedMessage = {
-    msgid: number;
-    name: string;
-    text: string;
-  };
-  type ReceivedMessageData = {
-    room: RoomName,
-    messages: Array<ReceivedMessage>
-  };
-  type MessageTable = {
-    villager: Array<ReceivedMessage>;
-    werewolf: Array<ReceivedMessage>;
-    sharer: Array<ReceivedMessage>;
-  };
-
-  // 村の状態
-  type GameState = "廃村" | "村民募集中" | "戦闘中" | "終戦";
-  type CombatPhase = "昼" | "吊" | "夜" | "噛";
-  type VillageStatus = {    // VueとClassを併用するためにデータの階層を1つ作る
-    state: GameState;
-    phase: CombatPhase;
-    timelimit: number;
-  }
-  type Role = "村人" | "人狼" | "占い師" | "狂人"  | "狩人" | "霊能者" | "共有者" | "妖狐"
   class Villager {
+    public key:string;
+    public name:string;
+    public role:Role;
     public alive: boolean;
     // public votetargets
-    constructor(public name:string, public role:Role) {
+    constructor(key:string, name:string, role:Role) {
+      this.key = key;
+      this.name = name;
+      this.role = role;
       this.alive = true;
     };
+    public getStatus(zinrokey:string):VillagerStatus {
+      return {
+        name: this.name,
+        alive: this.alive,
+        role: (zinrokey == this.key) ? this.role : null
+      }
+    }
   }
   class Village {
-    private state: GameState;
+    private state: VillageState;
     private phase: CombatPhase;
     private timelimit: number;
+    private villagers: Array<Villager>;
+    private keymap: {[key:string]:Villager};
+    private namemap: {[key:string]:Villager};
+
     //private villagers
     public msgtbl:MessageTable = {
       villager: [],
@@ -80,7 +67,7 @@ module Zinro {
     };
     private io:SocketIO.Namespace;
 
-    constructor(public name:string) {
+    constructor(public name:string, public admin:string) {
       this.initialize();
     };
     public initialize() {
@@ -119,17 +106,36 @@ module Zinro {
       this.msgtbl.werewolf = [];
       this.msgtbl.sharer = [];
     }
-    public getStatus():VillageStatus {
+    public getStatus(zinrokey:string):VillageStatus {
       return {
+        name: this.name,
         state: this.state,
         phase: this.phase,
-        timelimit: this.timelimit
+        timelimit: this.timelimit,
+        admin: (zinrokey == this.admin) ? true : false
       }
     };
     public getVillager(key):Villager {
       // todo
-      var v:Villager = new Villager("takuma", "村人");
+      var v:Villager = new Villager("", "takuma", "村人");
       return v;
+    };
+    public addVillager(key:string, name:string):Villager {
+      if (this.keymap.hasOwnProperty(key) || this.namemap.hasOwnProperty(name)) {
+        return null;
+      }
+      let role:Role = this.getRole();
+      if (!role) {
+        return null;
+      }
+      let v:Villager = new Villager(key, name, role);
+      this.villagers.push(v);
+      this.keymap[key] = v;
+      this.namemap[name] = v;
+      return v;
+    };
+    public getRole():Role {
+      return "村人";
     };
     public checkChatUser(room:RoomName, villager:Villager):boolean {
       // ユーザーに発言権があるか確認する
@@ -153,22 +159,77 @@ module Zinro {
       return false;
     }
   }
+
+
+  type CountryStatusRequest = {
+    key: string;
+  }
+  type CountryStatus = {   // クライアントに返すデータ
+    name: string;
+    villages: Array<VillageStatus>;  // villageがnullのとき
+  }
+
   class Country {
-    private vtbl:{[key:string]:Village};
+    private villages:Array<Village>;
+    private namemap:{[key:string]:Village};    // name => village
+    private io:SocketIO.Namespace;
+
     constructor(public name:string) {
-      this.vtbl = {};
+      this.initialize();
     };
-    public addVillage(name:string):Village {
-      if (this.vtbl.hasOwnProperty(name)) { return null; }
-      this.vtbl[name] = new Village(name);
-      return this.vtbl[name];
+    public initialize() {
+      this.villages = [];
+      this.namemap = {};
+      this.initSocket();
+    };
+    private initSocket() {
+      var $$:Country = this;
+      $$.io = ios.of(`/countries/${this.name}`);
+      $$.io.on("connection", function(socket) {
+        socket.on("status", function(data:SendMessageData) {
+          console.log(data);
+          var status = $$.getCountryStatus(data.key);
+          console.log(status);
+          socket.json.emit("status", status);
+        })
+      })
+    };
+    public addVillage(name:string, admin:string):Village {
+      if (this.namemap.hasOwnProperty(name)) { return null; }
+      var village:Village = new Village(name, admin);
+      this.villages.push(village);
+      this.namemap[name] = village;
+      return village;
     }
-    public deleteVillage(name:string) {
-      delete this.vtbl[name];
+    public deleteVillage(name:string, admin:string) {
+      var village:Village = this.namemap[name];
+      if (village.admin == admin) {
+        delete this.namemap[name];
+        let idx = this.villages.indexOf(village);
+        if (idx >= 0) {
+            this.villages.splice(idx, 1);
+        }
+      }
+    }
+    public getVillageStatuses(key:string):Array<VillageStatus> {
+      var statuses:Array<VillageStatus> = [];
+      for (let i=0, len=this.villages.length; i < len; i++) {
+        var v:Village = this.villages[i];
+        statuses.push(v.getStatus(key));
+      }
+      return statuses
+    }
+    public getCountryStatus(key:string):CountryStatus {
+      return {
+        name: this.name,
+        villages: this.getVillageStatuses(key)
+      };
     }
   }
-  var country = new Country("日本");
-  country.addVillage("なかよし村");
+  var country = new Country("人狼国");
+  country.addVillage("素人村", "");
+  country.addVillage("一般村", "");
+  country.addVillage("玄人村", "");
 }
 
 app.get('/', function(request, response) {

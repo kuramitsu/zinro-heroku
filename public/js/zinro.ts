@@ -1,54 +1,161 @@
 /// <reference path="../../typings/main.d.ts" />
+/// <reference path="../../zinro.d.ts" />
 
 // Zinro Logic
 module ZinroClient {
   // declare var homeurl:string;
-  interface Socket extends SocketIOClient.Socket {
-    json: SocketIOClient.Socket;    // なんか定義されてないので追加しとく
-  }
-  type RoomName = "villager" | "werewolf" | "sharer";
-  type SendMessageData = {
-    village: string;
-    room: RoomName;
-    key: string;
-    text: string;
-  }
-  type ReceivedMessage = {
-    msgid: number;
-    name: string;
-    text: string;
-  };
-  type ReceivedMessageData = {
-    room: RoomName,
-    messages: Array<ReceivedMessage>
-  };
-  type MessageTable = {
-    villager: Array<ReceivedMessage>;
-    werewolf: Array<ReceivedMessage>;
-  }
-  function randomString(len:number):string {
-      // http://qiita.com/ryounagaoka/items/4736c225bdd86a74d59c
-      var c = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-      var cl = c.length;
-      var r = "";
-      for (var i = 0; i < len; i++) {
-          r += c[Math.floor(Math.random()*cl)];
-      }
-      return r;
-  };
-  function getZinrokey():string {
-      var zinrokey:string = localStorage.getItem("zinrokey");
-      if (!zinrokey) {
+  class LS {
+    private _key:string = null;
+    private _name:string = null;
+    private _village:string = null;
+
+    public randomString(len:number):string {
+        // http://qiita.com/ryounagaoka/items/4736c225bdd86a74d59c
+        var c = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        var cl = c.length;
+        var r = "";
+        for (var i = 0; i < len; i++) {
+            r += c[Math.floor(Math.random()*cl)];
+        }
+        return r;
+    };
+
+    get key():string {
+      if (!this._key) {
+        var zinrokey:string = localStorage.getItem("zinrokey");
+        if (!zinrokey) {
           let timekey = new Date().getTime().toString(16);
-          let randomkey = randomString(16);
+          let randomkey = this.randomString(16);
           zinrokey = timekey + randomkey;
           localStorage.setItem("zinrokey", zinrokey);
+        }
+        this._key = zinrokey;
       }
-      return zinrokey
+      return this._key;
+    }
+    set key(zinrokey:string) {
+      localStorage.setItem("zinrokey", zinrokey);
+      this._key = zinrokey;
+    }
+    get name():string {
+      if (!this._name) {
+        var zinroname:string = localStorage.getItem("zinroname");
+        if (!zinroname) { zinroname = ""; }
+        this._name = zinroname;
+      }
+      return this._name;
+    }
+    set name(zinroname:string) {
+      localStorage.setItem("zinroname", zinroname);
+      this._name = zinroname;
+    }
+    get village():string {
+      if (!this._village) {
+        var zinrovillage:string = localStorage.getItem("zinrovillage");
+        if (!zinrovillage) { zinrovillage = null; }
+        this._village = zinrovillage;
+      }
+      return this._village;
+    }
+    set village(zinrovillage:string) {
+      localStorage.setItem("zinrovillage", zinrovillage);
+      this._village = zinrovillage;
+    }
   }
-  var zinrokey = getZinrokey();
+
+  var zls = new LS();
+  var zinrokey = zls.key;
 
   // var io_game:Socket = <Socket>io.connect("/game");
+
+  // グローバル変数　（村の状態とか会話履歴とか）
+  var g_msgtbl:MessageTable = {
+    villager: [],
+    werewolf: [],
+    sharer: []
+  }
+  var g_c_status:CountryStatus = {
+    name: "",
+    villages: []
+  }
+  var io_country = <Socket>io.connect("/countries/人狼国");
+  io_country.on("status", function(data:CountryStatus) {
+    console.log(data);
+    g_c_status.name = data.name;
+    g_c_status.villages = data.villages;
+  })
+  var csrequest:CountryStatusRequest = {
+    key: zinrokey
+  }
+  io_country.json.emit("status", csrequest)
+
+  /*
+  var io_game:Socket = <Socket>io.connect("/villages/なかよし村");
+  io_game.on("message", function(data:ReceivedMessageData) {
+    // 履歴も含めて丸ごと受信 （実装が簡単だから）
+    console.log(data);
+    g_msgtbl[data.room] = data.messages;
+  })
+  */
+
+  var g_v_status:VillageStatus = {
+    name: "",
+    state: "廃村",
+    phase: "吊",
+    timelimit: 0,
+    admin: null
+  }
+  function updateVillageStatus(status:VillageStatus) {
+    g_v_status.name = status.name;
+    g_v_status.state = status.state;
+    g_v_status.phase = status.phase;
+    g_v_status.timelimit = status.timelimit;
+    g_v_status.admin = status.admin;
+  }
+  var io_village:Socket = null;
+
+
+  // ビュー
+  var IndexVue = Vue.extend({
+    template: `
+      <div>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>村名</th><th>状態</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="village in villages" track-by="name" @click="selectVillage(village)">
+              <td>[[village.name]]</td>
+              <td>[[village.state]]</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    `,
+    data: function() {
+      return {
+          c_status: g_c_status
+      }
+    },
+    computed: {
+      country_name: function() {
+        let c_status:CountryStatus = this.c_status;
+        return c_status.name;
+      },
+      villages: function() {
+        let c_status:CountryStatus = this.c_status;
+        return c_status.villages;
+      }
+    },
+    methods: {
+      selectVillage: function(village:VillageStatus) {
+        this.$dispatch('selectVillage', village.name);
+      }
+    }
+  })
+
   var ChatComponent = Vue.extend({
     template: `
       <div>
@@ -73,15 +180,15 @@ module ZinroClient {
     },
     data: function() {
       return {
-        text: ""
+        text: "",
+        key: zinrokey
       }
     },
     methods: {
       sendMessage: function() {
         var msg:SendMessageData = {
-          village: this.village,
           room: this.room,
-          key: zinrokey,
+          key: this.key,
           text: this.text
         };
         this.$dispatch('sendMessage', msg);
@@ -90,19 +197,6 @@ module ZinroClient {
     }
   })
 
-  // グローバル変数　（村の状態とか会話履歴とか）
-  var msgtbl:MessageTable = {
-    villager: [],
-    werewolf: []
-  }
-  var io_game:Socket = <Socket>io.connect("/villages/なかよし村");
-  io_game.on("message", function(data:ReceivedMessageData) {
-    // 履歴も含めて丸ごと受信 （実装が簡単だから）
-    console.log(data);
-    msgtbl[data.room] = data.messages;
-  })
-
-  // ビュー
   var AbandonedView = Vue.extend({
     template: `
       <div>
@@ -110,128 +204,72 @@ module ZinroClient {
       </div>
     `,
   })
+
   var VillagerChatView  = Vue.extend({
     components: { "chat": ChatComponent },
     template: '<chat :village="village" room="villager" :msgs="msgs"></chat>',
     props: { village: String },
-    data: function(){ return {msgtbl: msgtbl}; },
+    data: function(){ return {msgtbl: g_msgtbl}; },
     computed: {
       msgs: function() { return this.msgtbl.villager; }
     }
   })
 
-  /*
-  var ZinroComponent = Vue.extend({
-    components: {
-      "chat": ChatComponent
-    },
-    events: {
-      sendMessage: function(msg:SendMessageData) {
-        io_game.json.emit("message", msg);
-        console.log(msg)
-      }
-    }
-  });
-  */
-
   var vm_zinro = new Vue({
-    el: "#zinrochat",
+    el: "#zinro",
     components: {
+      "index": IndexVue,
       "chat": ChatComponent,
       "Abandoned": AbandonedView,       // 廃村
       "VillagerChat": VillagerChatView  // 村会チャット
     },
     data: {
-      village: "なかよし村",
-      currentView: 'VillagerChat'
+      country_status: g_c_status,
+      village_status: g_v_status,
+      userkey: zls.key,
+      username: zls.name,
+      select_village: zls.village
+    },
+    computed: {
+      current_view: function():string {
+        let village:string = this.select_village;
+        if (!village) {
+          return "index";
+        }
+        //let v:string = zls.village;
+        return "VillagerChat";
+      }
+    },
+    methods: {
+      connectVillage: function(name:string) {
+        io_village = <Socket>io.connect(`/villages/${name}`);
+        io_village.on("message", function(data:ReceivedMessageData) {
+          console.log(data);
+          g_msgtbl[data.room] = data.messages;
+        })
+        io_village.on("status", function(data:VillageStatus) {
+          console.log(data);
+          updateVillageStatus(data);
+        })
+      }
+    },
+    watch: {
+      select_village: function(vname:string) { // 村の選択が変わったら接続し直し
+        console.log(vname)
+        if (vname) {
+          this.connectVillage(vname);
+          io_village.json.emit("status", {key: this.userkey});
+        }
+      }
     },
     events: {
       sendMessage: function(msg:SendMessageData) {
-        io_game.json.emit("message", msg);
+        io_village.json.emit("message", msg);
         console.log(msg)
+      },
+      selectVillage: function(vname:string) {
+        this.select_village = vname;
       }
     }
   })
-
-
-
-  type GameState = "廃村" | "村民募集中" | "戦闘中" | "終戦";
-  type CombatPhase = "昼" | "吊" | "夜" | "噛";
-  export type VillageData = {    // VueとClassを併用するためにデータの階層を1つ作る
-    state: GameState;
-    phase: CombatPhase;
-    timelimit: number;
-  }
-  export class Village {
-    public data: VillageData = {
-      state: undefined,
-      phase: undefined,
-      timelimit: undefined
-    };
-    constructor() {
-      this.initialize();
-    };
-    public initialize() {
-      this.data.state = "廃村";
-      this.data.phase = "吊";
-      this.data.timelimit = 0;
-    }
-  }
 }
-
-// Zinro View with vue.js
-module ZinroView {
-  //　外部から参照したいデータとか定義しとく
-  interface ZinroVue extends vuejs.Vue {
-    data: ZinroClient.VillageData;
-  }
-  var village = new ZinroClient.Village();
-  console.log(village);
-  var vm_header = <ZinroVue>(new Vue({
-    el: "#navheader",
-    data: {
-      data: village.data,    // ZinroClient.VillageData
-      compiled: false
-    },
-    computed: {           // ショートカット
-      state: function() {
-        return this.data.state;
-      },
-      phase: function() {
-        return this.data.pahse;
-      },
-      timelimit: function() {
-        return this.data.timelimit;
-      }
-    },
-    compiled: function() {
-      this.compiled = true;
-    }
-  }));
-  vm_header.$log("data");
-  console.log(vm_header.data.state);
-
-}
-
-
-/*
-var vm_chat = new Vue({
-  el: "#chattest",
-  data: {
-    state: gState,
-    alltext: ""
-  },
-  computed: {
-    msgs: {
-      get: function() {return this.state.msgs;},
-      set: function(val) {this.state.msgs = val;}
-    }
-  },
-  methods: {
-    sendAll: function() {
-      io_game.json.emit("villager", {msg: this.alltext});
-      console.log(this.alltext);
-    }
-  }
-})
-*/
