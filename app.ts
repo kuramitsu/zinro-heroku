@@ -150,7 +150,7 @@ module Zinro {
     };
     public sayInRoom(room:RoomName, zinrokey:string, text:string):Boolean {
       let v = this.getVillager(zinrokey);
-      if (this.checkChatUser(room, v)) {
+      if (this.checkChatUser(room, v) && text) {
         let messages:Array<ReceivedMessage> = this.msgtbl[room];
         let new_msg:ReceivedMessage = {
           msgid: messages.length,

@@ -129,7 +129,7 @@ var Zinro;
         ;
         Village.prototype.sayInRoom = function (room, zinrokey, text) {
             var v = this.getVillager(zinrokey);
-            if (this.checkChatUser(room, v)) {
+            if (this.checkChatUser(room, v) && text) {
                 var messages = this.msgtbl[room];
                 var new_msg = {
                     msgid: messages.length,

@@ -158,13 +158,15 @@ var ZinroClient;
         },
         methods: {
             sendMessage: function () {
-                var msg = {
-                    room: this.room,
-                    key: this.key,
-                    text: this.text
-                };
-                this.$dispatch('sendMessage', msg);
-                this.text = "";
+                if (this.text) {
+                    var msg = {
+                        room: this.room,
+                        key: this.key,
+                        text: this.text
+                    };
+                    this.$dispatch('sendMessage', msg);
+                    this.text = "";
+                }
             }
         }
     });
