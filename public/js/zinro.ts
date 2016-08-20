@@ -156,9 +156,20 @@ module ZinroClient {
     }
   })
 
+
+
   var ChatComponent = Vue.extend({
+    filters: {
+      "datefmt": function(value:number):string {
+        let dd = new Date(value);
+        let hours = `0${dd.getHours()}`.slice(-2);
+        let minutes = `0${dd.getMinutes()}`.slice(-2);
+        let seconds = `0${dd.getSeconds()}`.slice(-2);
+        return `${hours}:${minutes}:${seconds}`
+      }
+    },
     template: `
-      <div>
+      <div style="margin-bottom:10px;">
         <form @submit.prevent.stop="sendMessage()" role="form">
           <div class="input-group">
             <input type="text" class="form-control" v-model="text">
@@ -169,7 +180,10 @@ module ZinroClient {
         </form>
       </div>
       <div v-for="msg in msgs | orderBy 'msgid' -1" track-by="msgid">
-        [[msg.name]]
+        <div style="position: relative;">
+          <span>[[msg.name]]</span>
+          <span class="pull-right" style="position: absolute; bottom: 0; right: 0; color:gray; font-size:xx-small;">[[msg.timestamp | datefmt]]</span>
+        </div>
         <pre>[[msg.text]]</pre>
       </div>
     `,

@@ -122,12 +122,18 @@ var Zinro;
             return false;
         };
         ;
+        Village.prototype.getTimestamp = function () {
+            var dd = new Date();
+            return dd.getTime();
+        };
+        ;
         Village.prototype.sayInRoom = function (room, zinrokey, text) {
             var v = this.getVillager(zinrokey);
             if (this.checkChatUser(room, v)) {
                 var messages = this.msgtbl[room];
                 var new_msg = {
                     msgid: messages.length,
+                    timestamp: this.getTimestamp(),
                     name: v.name,
                     text: text
                 };

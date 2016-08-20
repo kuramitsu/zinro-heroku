@@ -135,7 +135,16 @@ var ZinroClient;
         }
     });
     var ChatComponent = Vue.extend({
-        template: "\n      <div>\n        <form @submit.prevent.stop=\"sendMessage()\" role=\"form\">\n          <div class=\"input-group\">\n            <input type=\"text\" class=\"form-control\" v-model=\"text\">\n            <span class=\"input-group-btn\">\n              <button type=\"submit\" class=\"btn btn-primary\">\u6295\u7A3F</button>\n            </span>\n          </div>\n        </form>\n      </div>\n      <div v-for=\"msg in msgs | orderBy 'msgid' -1\" track-by=\"msgid\">\n        [[msg.name]]\n        <pre>[[msg.text]]</pre>\n      </div>\n    ",
+        filters: {
+            "datefmt": function (value) {
+                var dd = new Date(value);
+                var hours = ("0" + dd.getHours()).slice(-2);
+                var minutes = ("0" + dd.getMinutes()).slice(-2);
+                var seconds = ("0" + dd.getSeconds()).slice(-2);
+                return hours + ":" + minutes + ":" + seconds;
+            }
+        },
+        template: "\n      <div style=\"margin-bottom:10px;\">\n        <form @submit.prevent.stop=\"sendMessage()\" role=\"form\">\n          <div class=\"input-group\">\n            <input type=\"text\" class=\"form-control\" v-model=\"text\">\n            <span class=\"input-group-btn\">\n              <button type=\"submit\" class=\"btn btn-primary\">\u6295\u7A3F</button>\n            </span>\n          </div>\n        </form>\n      </div>\n      <div v-for=\"msg in msgs | orderBy 'msgid' -1\" track-by=\"msgid\">\n        <div style=\"position: relative;\">\n          <span>[[msg.name]]</span>\n          <span class=\"pull-right\" style=\"position: absolute; bottom: 0; right: 0; color:gray; font-size:xx-small;\">[[msg.timestamp | datefmt]]</span>\n        </div>\n        <pre>[[msg.text]]</pre>\n      </div>\n    ",
         props: {
             village: String,
             room: String,

@@ -9,6 +9,7 @@ type SendMessageData = {
 }
 type ReceivedMessage = {
   msgid: number;
+  timestamp: number;
   name: string;
   text: string;
 };

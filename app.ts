@@ -144,12 +144,17 @@ module Zinro {
       }
       return false;
     };
+    private getTimestamp():number {
+      let dd = new Date();
+      return dd.getTime();
+    };
     public sayInRoom(room:RoomName, zinrokey:string, text:string):Boolean {
       let v = this.getVillager(zinrokey);
       if (this.checkChatUser(room, v)) {
         let messages:Array<ReceivedMessage> = this.msgtbl[room];
         let new_msg:ReceivedMessage = {
           msgid: messages.length,
+          timestamp: this.getTimestamp(),
           name: v.name,
           text: text
         };
