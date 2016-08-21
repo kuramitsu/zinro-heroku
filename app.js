@@ -73,6 +73,12 @@ var Zinro;
                         send_messages(room);
                     }
                 });
+                socket.on("status", function (data) {
+                    console.log(data);
+                    var status = $$.getStatus(data.key);
+                    console.log(status);
+                    socket.json.emit("status", status);
+                });
             });
         };
         ;

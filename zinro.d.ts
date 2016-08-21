@@ -27,6 +27,9 @@ type MessageTable = {
 // 村の状態
 type VillageState = "廃村" | "村民募集中" | "戦闘中" | "終戦";
 type CombatPhase = "昼" | "吊" | "夜" | "噛";
+type VillageStatusRequest = {
+  key: string;
+}
 type VillageStatus = {    // VueとClassを併用するためにデータの階層を1つ作る
   name: string;
   state: VillageState;

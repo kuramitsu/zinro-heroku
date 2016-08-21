@@ -19,31 +19,8 @@
 </head>
 <body>
   <div id="zinro">
-    <nav id="navheader" class="navbar navbar-default navbar-static-top navbar-inverse">
-      <div class="container" style="display:none;" v-show="compiled">
-        <div class="navbar-header">
-          <a v-show="state == '終戦'" class="navbar-brand">
-            終戦 （[[timelimit]]秒）
-          </a>
-          <a v-show="state == '廃村'" class="navbar-brand">
-            廃村
-          </a>
-          <a v-show="state == '村民募集中'" class="navbar-brand">
-            村民募集中... 後 [[wantnum]] 人！ （[[timelimit]]秒）
-          </a>
-          <a v-show="state == '戦闘中'" class="navbar-brand">
-            [[days]]日目 [[phase]] （[[timelimit]]秒）
-          </a>
-        </div>
-      </div>
-    </nav>
-
-    <div class="container">
-      <component :is="current_view" :village="village" keep-alive></component>
-    </div>
+    <component :is="current_view" :zdata="zdata" :zkey="zkey" :zname="zname" keep-alive></component>
   </div>
-
-
   <script src="/js/zinro.js"></script>
 </body>
 </html>

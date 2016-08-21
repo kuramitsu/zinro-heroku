@@ -98,7 +98,13 @@ module Zinro {
           if ($$.sayInRoom(room, key, text)) {
             send_messages(room);
           }
-        })
+        });
+        socket.on("status", function(data:VillageStatusRequest) {
+          console.log(data);
+          var status = $$.getStatus(data.key);
+          console.log(status);
+          socket.json.emit("status", status);
+        });
       })
     };
     private clearMessageTable() {
