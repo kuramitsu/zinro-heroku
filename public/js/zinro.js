@@ -109,7 +109,8 @@ var ZinroClient;
                 state: "廃村",
                 phase: "吊",
                 timelimit: 0,
-                admin: null
+                admin: null,
+                setting: null
             };
             this.data = {
                 msgtbl: msgtbl,
@@ -207,10 +208,32 @@ var ZinroClient;
             }
         }
     });
-    var BuildView = Vue.extend({
-        template: "\n    ",
+    var InputComponent = Vue.extend({
+        template: "\n      <div class=\"form-group form-group-sm\">\n        <label :for=\"id\" class=\"col-sm-2 control-label\">[[label]]</label>\n        <div class=\"col-sm-10\">\n          <input v-if='type==\"number\"' :id=\"id\" :type=\"type\" class=\"form-control\" style=\"max-width:200px;\" v-model=\"model\" number>\n          <input v-else :id=\"id\" :type=\"type\" class=\"form-control\" style=\"max-width:200px;\" v-model=\"model\">\n        </div>\n      </div>\n    ",
         props: {
-            village: Object
+            id: String,
+            type: {
+                type: String,
+                default: "text"
+            },
+            label: String,
+            model: [String, Number]
+        }
+    });
+    var BuildView = Vue.extend({
+        components: {
+            "z-header": HeaderComponent,
+            "z-input": InputComponent
+        },
+        template: "\n      <div>\n        <z-header>\u5EFA\u6751\u4E2D</z-header>\n        <div class=\"container\">\n          <form class=\"form-horizontal\">\n            <z-input id=\"name\" label=\"\u6751\u306E\u540D\u524D\" :model.sync=\"s.name\"></z-input>\n            <z-input id=\"daytime\" label=\"\u663C\u6642\u9593\uFF08\u79D2\uFF09\" :model.sync=\"s.daytime\" type=\"number\"></z-input>\n          </form>\n        </div>\n      </div>\n    ",
+        props: {
+            zdata: Object
+        },
+        computed: {
+            s: function () {
+                var $$ = this.zdata;
+                return $$.village.setting;
+            }
         }
     });
     var ChatComponent = Vue.extend({
@@ -294,6 +317,9 @@ var ZinroClient;
                 var $$ = this.zdata;
                 if (!$$.village.name) {
                     return "Index";
+                }
+                if ($$.village.state == "廃村") {
+                    return "Build";
                 }
                 return "VillagerChat";
             },

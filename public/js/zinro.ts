@@ -100,7 +100,8 @@ module ZinroClient {
         state: "廃村",
         phase: "吊",
         timelimit: 0,
-        admin: null
+        admin: null,
+        setting: null
       }
       this.data = {
         msgtbl: msgtbl,
@@ -228,11 +229,51 @@ module ZinroClient {
     }
   })
 
-  var BuildView = Vue.extend({
+  var InputComponent = Vue.extend({
     template: `
+      <div class="form-group form-group-sm">
+        <label :for="id" class="col-sm-2 control-label">[[label]]</label>
+        <div class="col-sm-10">
+          <input v-if='type=="number"' :id="id" :type="type" class="form-control" style="max-width:200px;" v-model="model" number>
+          <input v-else :id="id" :type="type" class="form-control" style="max-width:200px;" v-model="model">
+        </div>
+      </div>
     `,
     props: {
-      village: Object
+      id: String,
+      type: {
+        type: String,
+        default: "text"
+      },
+      label: String,
+      model: [String, Number]
+    }
+  })
+
+  var BuildView = Vue.extend({
+    components: {
+      "z-header": HeaderComponent,
+      "z-input": InputComponent
+    },
+    template: `
+      <div>
+        <z-header>建村中</z-header>
+        <div class="container">
+          <form class="form-horizontal">
+            <z-input id="name" label="村の名前" :model.sync="s.name"></z-input>
+            <z-input id="daytime" label="昼時間（秒）" :model.sync="s.daytime" type="number"></z-input>
+          </form>
+        </div>
+      </div>
+    `,
+    props: {
+      zdata: Object
+    },
+    computed: {
+      s: function():VillageSetting {
+        let $$:ClientData = this.zdata;
+        return $$.village.setting;
+      }
     }
   })
 
@@ -347,6 +388,9 @@ module ZinroClient {
         let $$:ClientData = this.zdata;
         if (!$$.village.name) {
           return "Index";
+        }
+        if ($$.village.state == "廃村") {
+          return "Build";
         }
         //let v:string = zls.village;
         return "VillagerChat";

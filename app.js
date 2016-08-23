@@ -32,14 +32,16 @@ var Zinro;
         return Villager;
     }());
     var Village = (function () {
-        function Village(name, admin) {
+        function Village(name, admin, setting) {
             this.name = name;
             this.admin = admin;
+            this.setting = setting;
             this.msgtbl = {
                 villager: [],
                 werewolf: [],
                 sharer: []
             };
+            setting.name = name;
             this.initialize();
         }
         ;
@@ -93,7 +95,8 @@ var Zinro;
                 state: this.state,
                 phase: this.phase,
                 timelimit: this.timelimit,
-                admin: (zinrokey == this.admin) ? true : false
+                admin: (zinrokey == this.admin) ? true : false,
+                setting: this.setting
             };
         };
         ;
@@ -175,11 +178,11 @@ var Zinro;
             });
         };
         ;
-        Country.prototype.addVillage = function (name, admin) {
+        Country.prototype.addVillage = function (name, admin, setting) {
             if (this.namemap.hasOwnProperty(name)) {
                 return null;
             }
-            var village = new Village(name, admin);
+            var village = new Village(name, admin, setting);
             this.villages.push(village);
             this.namemap[name] = village;
             return village;
@@ -211,9 +214,30 @@ var Zinro;
         return Country;
     }());
     var country = new Country("人狼国");
-    country.addVillage("素人村", "");
-    country.addVillage("一般村", "");
-    country.addVillage("玄人村", "");
+    var setting = {
+        name: "",
+        daytime: 180,
+        nighttime: 60,
+        hangtime: 10,
+        bitetime: 10,
+        endtime: 600,
+        rolenum: {
+            村人: 1,
+            人狼: 1,
+            占い師: 1,
+            狂人: 1,
+            狩人: 0,
+            霊能者: 0,
+            共有者: 0,
+            妖狐: 0
+        },
+        firstnpc: true,
+        roledeath: true,
+        zombie: true
+    };
+    country.addVillage("素人村", "", setting);
+    country.addVillage("一般村", "", setting);
+    country.addVillage("玄人村", "", setting);
 })(Zinro || (Zinro = {}));
 app.get('/', function (request, response) {
     response.render('pages/zinro');

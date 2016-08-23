@@ -67,7 +67,8 @@ module Zinro {
     };
     private io:SocketIO.Namespace;
 
-    constructor(public name:string, public admin:string) {
+    constructor(public name:string, public admin:string, public setting:VillageSetting) {
+      setting.name = name;
       this.initialize();
     };
     public initialize() {
@@ -118,7 +119,8 @@ module Zinro {
         state: this.state,
         phase: this.phase,
         timelimit: this.timelimit,
-        admin: (zinrokey == this.admin) ? true : false
+        admin: (zinrokey == this.admin) ? true : false,
+        setting: this.setting
       }
     };
     public getVillager(key):Villager {
@@ -205,9 +207,9 @@ module Zinro {
         })
       })
     };
-    public addVillage(name:string, admin:string):Village {
+    public addVillage(name:string, admin:string, setting:VillageSetting):Village {
       if (this.namemap.hasOwnProperty(name)) { return null; }
-      var village:Village = new Village(name, admin);
+      var village:Village = new Village(name, admin, setting);
       this.villages.push(village);
       this.namemap[name] = village;
       return village;
@@ -238,9 +240,31 @@ module Zinro {
     }
   }
   var country = new Country("人狼国");
-  country.addVillage("素人村", "");
-  country.addVillage("一般村", "");
-  country.addVillage("玄人村", "");
+
+  var setting:VillageSetting = {
+    name: "",
+    daytime: 180,
+    nighttime: 60,
+    hangtime: 10,
+    bitetime: 10,
+    endtime: 600,
+    rolenum: {
+      村人: 1,
+      人狼: 1,
+      占い師: 1,
+      狂人: 1,
+      狩人: 0,
+      霊能者: 0,
+      共有者: 0,
+      妖狐: 0
+    },
+    firstnpc: true,
+    roledeath: true,
+    zombie: true
+  }
+  country.addVillage("素人村", "", setting);
+  country.addVillage("一般村", "", setting);
+  country.addVillage("玄人村", "", setting);
 }
 
 app.get('/', function(request, response) {
