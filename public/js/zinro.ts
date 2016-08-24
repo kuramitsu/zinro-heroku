@@ -262,7 +262,20 @@ module ZinroClient {
           <form class="form-horizontal">
             <z-input id="name" label="村の名前" :model.sync="s.name"></z-input>
             <z-input id="daytime" label="昼時間（秒）" :model.sync="s.daytime" type="number"></z-input>
+            <z-input id="nighttime" label="夜時間（秒）" :model.sync="s.nighttime" type="number"></z-input>
+            <z-input id="hangtime" label="吊時間（秒）" :model.sync="s.hangtime" type="number"></z-input>
+            <z-input id="bitetime" label="噛時間（秒）" :model.sync="s.bitetime" type="number"></z-input>
+            <div class="form-group form-group-sm">
+              <label for="inputVillageRoles" class="col-sm-2 control-label">構成員</label>
+              <div class="col-sm-10 form-inline">
+                <template v-for="role in ['村人', '人狼', '占い師', '狂人', '狩人', '妖狐']">
+                <label :for="role" class="control-label">[[role]]</label>
+                <input :id="role" type="number" class="form-control" style="max-width:50px;" v-model="s.rolenum[role]" number>
+                </template>
+              </div>
+            </div>
           </form>
+          <pre>[[s|json]]</pre>
         </div>
       </div>
     `,
