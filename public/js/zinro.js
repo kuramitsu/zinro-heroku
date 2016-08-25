@@ -166,6 +166,21 @@ var ZinroClient;
     }());
     var zls = new LS();
     var zclient = new Client("人狼国", zls.key);
+    var zroles = [
+        '村人', '占い師', '狂人', '狩人', '霊能者', '共有者',
+        '人狼',
+        '妖狐'
+    ];
+    var zfamilymap = {
+        '村人': "人",
+        '占い師': "人",
+        '狂人': "人",
+        '狩人': "人",
+        '霊能者': "人",
+        '共有者': "人",
+        '人狼': "狼",
+        '妖狐': "狐"
+    };
     var HeaderComponent = Vue.extend({
         template: "\n      <nav id=\"navheader\" class=\"navbar navbar-default navbar-static-top navbar-inverse\">\n        <div class=\"container\">\n          <div class=\"navbar-header\">\n            <a class=\"navbar-brand\"><slot>\u4EBA\u72FC</slot></a>\n          </div>\n        </div>\n      </nav>\n    "
     });
@@ -209,7 +224,7 @@ var ZinroClient;
         }
     });
     var InputComponent = Vue.extend({
-        template: "\n      <div class=\"form-group form-group-sm\">\n        <label :for=\"id\" class=\"col-sm-2 control-label\">[[label]]</label>\n        <div class=\"col-sm-10\">\n          <input v-if='type==\"number\"' :id=\"id\" :type=\"type\" class=\"form-control\" style=\"max-width:200px;\" v-model=\"model\" number>\n          <input v-else :id=\"id\" :type=\"type\" class=\"form-control\" style=\"max-width:200px;\" v-model=\"model\">\n        </div>\n      </div>\n    ",
+        template: "\n      <div class=\"form-group form-group-sm\">\n        <label :for=\"id\" class=\"col-sm-2 control-label\">[[label]]</label>\n        <div class=\"col-sm-10\">\n          <input v-if='type==\"number\"' :id=\"id\" :type=\"type\" class=\"form-control\" style=\"max-width:200px;\" v-model=\"model\" number :min=\"min\" :step=\"step\">\n          <input v-else :id=\"id\" :type=\"type\" class=\"form-control\" style=\"max-width:200px;\" v-model=\"model\">\n        </div>\n      </div>\n    ",
         props: {
             id: String,
             type: {
@@ -217,7 +232,12 @@ var ZinroClient;
                 default: "text"
             },
             label: String,
-            model: [String, Number]
+            model: [String, Number],
+            min: Number,
+            step: {
+                type: Number,
+                default: 1
+            }
         }
     });
     var BuildView = Vue.extend({
@@ -225,14 +245,59 @@ var ZinroClient;
             "z-header": HeaderComponent,
             "z-input": InputComponent
         },
-        template: "\n      <div>\n        <z-header>\u5EFA\u6751\u4E2D</z-header>\n        <div class=\"container\">\n          <form class=\"form-horizontal\">\n            <z-input id=\"name\" label=\"\u6751\u306E\u540D\u524D\" :model.sync=\"s.name\"></z-input>\n            <z-input id=\"daytime\" label=\"\u663C\u6642\u9593\uFF08\u79D2\uFF09\" :model.sync=\"s.daytime\" type=\"number\"></z-input>\n            <z-input id=\"nighttime\" label=\"\u591C\u6642\u9593\uFF08\u79D2\uFF09\" :model.sync=\"s.nighttime\" type=\"number\"></z-input>\n            <z-input id=\"hangtime\" label=\"\u540A\u6642\u9593\uFF08\u79D2\uFF09\" :model.sync=\"s.hangtime\" type=\"number\"></z-input>\n            <z-input id=\"bitetime\" label=\"\u565B\u6642\u9593\uFF08\u79D2\uFF09\" :model.sync=\"s.bitetime\" type=\"number\"></z-input>\n            <div class=\"form-group form-group-sm\">\n              <label for=\"inputVillageRoles\" class=\"col-sm-2 control-label\">\u69CB\u6210\u54E1</label>\n              <div class=\"col-sm-10 form-inline\">\n                <template v-for=\"role in ['\u6751\u4EBA', '\u4EBA\u72FC', '\u5360\u3044\u5E2B', '\u72C2\u4EBA', '\u72E9\u4EBA', '\u5996\u72D0']\">\n                <label :for=\"role\" class=\"control-label\">[[role]]</label>\n                <input :id=\"role\" type=\"number\" class=\"form-control\" style=\"max-width:50px;\" v-model=\"s.rolenum[role]\" number>\n                </template>\n              </div>\n            </div>\n          </form>\n          <pre>[[s|json]]</pre>\n        </div>\n      </div>\n    ",
+        template: "\n      <div>\n        <z-header>\u5EFA\u6751\u4E2D</z-header>\n        <div class=\"container\">\n          <form class=\"form-horizontal\">\n            <z-input id=\"name\" label=\"\u6751\u306E\u540D\u524D\" :model.sync=\"s.name\"></z-input>\n            <z-input id=\"daytime\" label=\"\u663C\u6642\u9593\uFF08\u79D2\uFF09\" :model.sync=\"s.daytime\" type=\"number\" :min=\"1\"></z-input>\n            <z-input id=\"nighttime\" label=\"\u591C\u6642\u9593\uFF08\u79D2\uFF09\" :model.sync=\"s.nighttime\" type=\"number\" :min=\"1\"></z-input>\n            <z-input id=\"hangtime\" label=\"\u540A\u6642\u9593\uFF08\u79D2\uFF09\" :model.sync=\"s.hangtime\" type=\"number\" :min=\"1\"></z-input>\n            <z-input id=\"bitetime\" label=\"\u565B\u6642\u9593\uFF08\u79D2\uFF09\" :model.sync=\"s.bitetime\" type=\"number\" :min=\"1\"></z-input>\n            <div class=\"form-group form-group-sm\">\n              <label for=\"inputVillageRoles\" class=\"col-sm-2 control-label\">\u69CB\u6210\u54E1</label>\n              <div class=\"col-sm-10 form-inline\">\n                <template v-for=\"role in roles\">\n                <label :for=\"role\" class=\"control-label\">[[role]]</label>\n                <input :id=\"role\" type=\"number\" class=\"form-control\" style=\"max-width:50px;\" v-model=\"s.rolenum[role]\" number min=0>\n                </template>\n              </div>\n            </div>\n            <div class=\"form-group form-group-sm\">\n                <div class=\"col-sm-offset-2 col-sm-10\">\n                    <div class=\"checkbox\">\n                        <label>\n                            <input id=\"firstnpc\" type=\"checkbox\" v-model=\"s.firstnpc\"> \u521D\u65E5NPC &nbsp;\n                        </label>\n                        <label>\n                            <input id=\"roledeath\" type=\"checkbox\" v-model=\"s.roledeath\"> \u521D\u65E5\u5F79\u8077\u6B7B &nbsp;\n                        </label>\n                        <label>\n                            <input id=\"zombie\" type=\"checkbox\" v-model=\"s.zombie\"> \u30BE\u30F3\u30D3\n                        </label>\n                    </div>\n                </div>\n            </div>\n          </form>\n          <ul style=\"color:red\">\n            <li v-for=\"error in errors\">[[error]]</li>\n          </ul>\n\n          <pre>[[s|json]]</pre>\n          <pre>[[humannum]]</pre>\n          <pre>[[wolfnum]]</pre>\n        </div>\n      </div>\n    ",
         props: {
             zdata: Object
+        },
+        data: function () {
+            return {
+                roles: zroles
+            };
         },
         computed: {
             s: function () {
                 var $$ = this.zdata;
                 return $$.village.setting;
+            },
+            humannum: function () {
+                var $$ = this.zdata;
+                var roles = this.roles;
+                var rnum = $$.village.setting.rolenum;
+                var humannum = 0;
+                for (var _i = 0, roles_1 = roles; _i < roles_1.length; _i++) {
+                    var role = roles_1[_i];
+                    if (zfamilymap[role] == "人") {
+                        humannum += rnum[role];
+                    }
+                }
+                return humannum;
+            },
+            wolfnum: function () {
+                var $$ = this.zdata;
+                var rnum = $$.village.setting.rolenum;
+                return rnum.人狼;
+            },
+            errors: function () {
+                var $$ = this.zdata;
+                var s = $$.village.setting;
+                var humannum = this.humannum;
+                var wolfnum = this.wolfnum;
+                var errors = [];
+                if (!s.name)
+                    errors.push("村の名前がありません。");
+                if (wolfnum < 1)
+                    errors.push("人狼がいません。");
+                if (humannum <= wolfnum + 1)
+                    errors.push("人間が少なすぎます。");
+                if (s.daytime < 1)
+                    errors.push("昼の時間が短すぎます。");
+                if (s.nighttime < 1)
+                    errors.push("夜の時間が短すぎます。");
+                if (s.hangtime < 1)
+                    errors.push("吊る時間が短すぎます。");
+                if (s.bitetime < 1)
+                    errors.push("噛む時間が短すぎます。");
+                return errors;
             }
         }
     });

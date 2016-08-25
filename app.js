@@ -14,6 +14,53 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 var Zinro;
 (function (Zinro) {
+    var zroles = [
+        '村人', '占い師', '狂人', '狩人', '霊能者', '共有者',
+        '人狼',
+        '妖狐'
+    ];
+    var zroletbl = {
+        '村人': {
+            family: '人',
+            camp: '人',
+            divination: '村人'
+        },
+        '占い師': {
+            family: '人',
+            camp: '人',
+            divination: '村人'
+        },
+        '狂人': {
+            family: '人',
+            camp: '人',
+            divination: '村人'
+        },
+        '狩人': {
+            family: '人',
+            camp: '人',
+            divination: '村人'
+        },
+        '霊能者': {
+            family: '人',
+            camp: '人',
+            divination: '村人'
+        },
+        '共有者': {
+            family: '人',
+            camp: '人',
+            divination: '村人'
+        },
+        '人狼': {
+            family: '人',
+            camp: '人',
+            divination: '村人'
+        },
+        '妖狐': {
+            family: '人',
+            camp: '人',
+            divination: '村人'
+        }
+    };
     var Villager = (function () {
         function Villager(key, name, role) {
             this.key = key;

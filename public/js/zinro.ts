@@ -158,7 +158,21 @@ module ZinroClient {
   // グローバル変数　（村の状態とか会話履歴とか）
   var zls = new LS();
   var zclient = new Client("人狼国", zls.key)
-
+  var zroles = [
+    '村人', '占い師', '狂人', '狩人', '霊能者', '共有者',
+    '人狼',
+    '妖狐'
+  ];
+  var zfamilymap:{[key:string]:Family} = {
+    '村人': "人",
+    '占い師': "人",
+    '狂人': "人",
+    '狩人': "人",
+    '霊能者': "人",
+    '共有者': "人",
+    '人狼': "狼",
+    '妖狐': "狐"
+  }
 
   // ビュー
   var HeaderComponent = Vue.extend({
@@ -234,7 +248,7 @@ module ZinroClient {
       <div class="form-group form-group-sm">
         <label :for="id" class="col-sm-2 control-label">[[label]]</label>
         <div class="col-sm-10">
-          <input v-if='type=="number"' :id="id" :type="type" class="form-control" style="max-width:200px;" v-model="model" number>
+          <input v-if='type=="number"' :id="id" :type="type" class="form-control" style="max-width:200px;" v-model="model" number :min="min" :step="step">
           <input v-else :id="id" :type="type" class="form-control" style="max-width:200px;" v-model="model">
         </div>
       </div>
@@ -246,7 +260,12 @@ module ZinroClient {
         default: "text"
       },
       label: String,
-      model: [String, Number]
+      model: [String, Number],
+      min: Number,
+      step: {
+        type: Number,
+        default: 1
+      }
     }
   })
 
@@ -261,31 +280,91 @@ module ZinroClient {
         <div class="container">
           <form class="form-horizontal">
             <z-input id="name" label="村の名前" :model.sync="s.name"></z-input>
-            <z-input id="daytime" label="昼時間（秒）" :model.sync="s.daytime" type="number"></z-input>
-            <z-input id="nighttime" label="夜時間（秒）" :model.sync="s.nighttime" type="number"></z-input>
-            <z-input id="hangtime" label="吊時間（秒）" :model.sync="s.hangtime" type="number"></z-input>
-            <z-input id="bitetime" label="噛時間（秒）" :model.sync="s.bitetime" type="number"></z-input>
+            <z-input id="daytime" label="昼時間（秒）" :model.sync="s.daytime" type="number" :min="1"></z-input>
+            <z-input id="nighttime" label="夜時間（秒）" :model.sync="s.nighttime" type="number" :min="1"></z-input>
+            <z-input id="hangtime" label="吊時間（秒）" :model.sync="s.hangtime" type="number" :min="1"></z-input>
+            <z-input id="bitetime" label="噛時間（秒）" :model.sync="s.bitetime" type="number" :min="1"></z-input>
             <div class="form-group form-group-sm">
               <label for="inputVillageRoles" class="col-sm-2 control-label">構成員</label>
               <div class="col-sm-10 form-inline">
-                <template v-for="role in ['村人', '人狼', '占い師', '狂人', '狩人', '妖狐']">
+                <template v-for="role in roles">
                 <label :for="role" class="control-label">[[role]]</label>
-                <input :id="role" type="number" class="form-control" style="max-width:50px;" v-model="s.rolenum[role]" number>
+                <input :id="role" type="number" class="form-control" style="max-width:50px;" v-model="s.rolenum[role]" number min=0>
                 </template>
               </div>
             </div>
+            <div class="form-group form-group-sm">
+                <div class="col-sm-offset-2 col-sm-10">
+                    <div class="checkbox">
+                        <label>
+                            <input id="firstnpc" type="checkbox" v-model="s.firstnpc"> 初日NPC &nbsp;
+                        </label>
+                        <label>
+                            <input id="roledeath" type="checkbox" v-model="s.roledeath"> 初日役職死 &nbsp;
+                        </label>
+                        <label>
+                            <input id="zombie" type="checkbox" v-model="s.zombie"> ゾンビ
+                        </label>
+                    </div>
+                </div>
+            </div>
           </form>
+          <ul style="color:red">
+            <li v-for="error in errors">[[error]]</li>
+          </ul>
+
           <pre>[[s|json]]</pre>
+          <pre>[[humannum]]</pre>
+          <pre>[[wolfnum]]</pre>
         </div>
       </div>
     `,
     props: {
       zdata: Object
     },
+    data: function() {
+      return {
+        roles: zroles
+      }
+    },
     computed: {
       s: function():VillageSetting {
         let $$:ClientData = this.zdata;
         return $$.village.setting;
+      },
+      humannum: function():number {
+        let $$:ClientData = this.zdata;
+        let roles:Array<Role> = this.roles;
+        let rnum = $$.village.setting.rolenum;
+        let humannum = 0;
+        for (let role of roles) {
+          if (zfamilymap[role] == "人") {
+            humannum += rnum[role];
+          }
+        }
+        return humannum;
+      },
+      wolfnum: function():number {
+        let $$:ClientData = this.zdata;
+        let rnum = $$.village.setting.rolenum;
+        return rnum.人狼;
+      },
+      errors: function():Array<string> {
+        let $$:ClientData = this.zdata;
+        let s = $$.village.setting;
+        let humannum:number = this.humannum;
+        let wolfnum:number = this.wolfnum;
+        var errors:Array<string> = [];
+
+        if (!s.name) errors.push("村の名前がありません。");
+        if (wolfnum < 1) errors.push("人狼がいません。");
+        if (humannum <= wolfnum + 1) errors.push("人間が少なすぎます。");
+        if (s.daytime < 1) errors.push("昼の時間が短すぎます。");
+        if (s.nighttime < 1) errors.push("夜の時間が短すぎます。");
+        if (s.hangtime < 1) errors.push("吊る時間が短すぎます。");
+        if (s.bitetime < 1) errors.push("噛む時間が短すぎます。");
+
+        return errors;
       }
     }
   })

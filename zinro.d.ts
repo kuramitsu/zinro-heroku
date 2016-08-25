@@ -65,6 +65,13 @@ type BuildVillageRequest = {
   setting: VillageSetting;
 }
 type Role = "村人" | "人狼" | "占い師" | "狂人"  | "狩人" | "霊能者" | "共有者" | "妖狐"
+type Family = "人" | "狼" | "狐"
+type RoleDetail = {
+  camp: Family;         // 陣営
+  family: Family;       // 種族
+  divination: "村人"|"人狼";   // 占い結果
+}
+
 type VillagerStatus = {
   name: string;
   alive: boolean;
