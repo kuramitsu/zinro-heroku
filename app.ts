@@ -77,6 +77,66 @@ module Zinro {
       divination: '村人'
     }
   }
+  function isInteger(o:any):boolean {
+    if (typeof o == "number" && parseInt(<any>o) === o) return true;
+    return false;
+  }
+  function isString(o:any, minlen=0):boolean {
+    if (typeof o == "string" && o.length >= minlen) return true;
+    return false;
+  }
+  function isBoolean(o:any):boolean {
+    if (typeof o == "boolean") return true;
+    return false;
+  }
+
+  function validVillageSetting(s:VillageSetting):boolean {
+    let wolfnum:number = s.rolenum.人狼;
+    let humannum:number = 0;
+    for (let i = 0, len = zroles.length; i < len; i++) {
+      let role = zroles[i];
+      if (zroletbl[role].family == "人") humannum += 1;
+    }
+    var errors:Array<string> = [];
+    // 型チェック
+    if (!isString(s.name)) errors.push("nameの型が不正");
+    if (!isInteger(s.daytime)) errors.push("daytimeの型が不正");
+    if (!isInteger(s.nighttime)) errors.push("nighttimeの型が不正");
+    if (!isInteger(s.hangtime)) errors.push("hangtimeの型が不正");
+    if (!isInteger(s.bitetime)) errors.push("bitetimeの型が不正");
+    if (!isInteger(s.endtime)) errors.push("endtimeの型が不正");
+    if (s.rolenum) {
+      for (let i = 0, len = zroles.length; i < len; i++) {
+        let role = zroles[i];
+        if (!isInteger(s.rolenum[role])) errors.push("rolenumの型が不正");
+      }
+    } else {
+      errors.push("rolenumの型が不正");
+    }
+    if (!isBoolean(s.firstnpc)) errors.push("firstnpcの型が不正");
+    if (!isBoolean(s.roledeath)) errors.push("roledeathの型が不正");
+    if (!isBoolean(s.zombie)) errors.push("zombieの型が不正");
+
+    if (errors.length > 0) {
+      console.log(errors);
+      return false;
+    }
+
+    // 値チェック
+    if (!s.name) errors.push("村の名前がありません。");
+    if (wolfnum < 1) errors.push("人狼がいません。");
+    if (humannum <= wolfnum + 1) errors.push("人間が少なすぎます。");
+    if (s.daytime < 1) errors.push("昼の時間が短すぎます。");
+    if (s.nighttime < 1) errors.push("夜の時間が短すぎます。");
+    if (s.hangtime < 1) errors.push("吊る時間が短すぎます。");
+    if (s.bitetime < 1) errors.push("噛む時間が短すぎます。");
+
+    if (errors.length > 0) {
+      console.log(errors);
+      return false;
+    }
+    return true;
+  }
 
   class Villager {
     public key:string;
@@ -114,7 +174,7 @@ module Zinro {
     };
     private io:SocketIO.Namespace;
 
-    constructor(public name:string, public admin:string, public setting:VillageSetting) {
+    constructor(public country:Country, public name:string, public adminkey:string, public setting:VillageSetting) {
       setting.name = name;
       this.initialize();
     };
@@ -122,6 +182,9 @@ module Zinro {
       this.state = "廃村";
       this.phase = "吊";
       this.timelimit = 0;
+      this.villagers = [];
+      this.keymap = {};
+      this.namemap = {};
       this.clearMessageTable();
       this.initSocket();
     };
@@ -149,9 +212,43 @@ module Zinro {
         });
         socket.on("status", function(data:VillageStatusRequest) {
           console.log(data);
-          var status = $$.getStatus(data.key);
-          console.log(status);
-          socket.json.emit("status", status);
+          var village_status = $$.getStatus(data.key);
+          console.log(village_status);
+          socket.json.emit("status", village_status);
+
+          let villager:Villager = $$.keymap[data.key];
+          if (villager) {   // すでに参加してるとき
+            // villagerStatusを本人に返す
+            let villager_status:VillagerStatus = villager.getStatus(data.key);
+            socket.json.emit("villager_status", villager_status);
+          }
+        });
+        socket.on("buildVillage", function(data:BuildVillageRequest) {
+          console.log(data);
+          if ($$.state == "廃村" && validVillageSetting(data.setting)) {
+            $$.adminkey = data.key;
+            $$.setting = data.setting;
+            $$.state = "村民募集中";
+            $$.timelimit = 300;
+            // 村の情報更新を周知
+            var status = $$.getStatus(data.key);
+            $$.io.json.emit("status", status);
+            // 国の情報更新を周知
+            var country_status = $$.country.getCountryStatus("");
+            console.log(country_status);
+            $$.country.io.json.emit("status", country_status);
+          }
+        });
+        socket.on("joinVillage", function(data:JoinVillageRequest) {
+          let villager:Villager = $$.addVillager(data.key, data.name);
+          if (villager) {   // 追加できたとき
+            // villagerStatusを本人に返す
+            let villager_status:VillagerStatus = villager.getStatus(data.key);
+            socket.json.emit("villager_status", villager_status);
+            // villageStatusを全員に返す
+            let village_status:VillageStatus = $$.getStatus("");
+            $$.io.json.emit("status", village_status);
+          }
         });
       })
     };
@@ -160,13 +257,31 @@ module Zinro {
       this.msgtbl.werewolf = [];
       this.msgtbl.sharer = [];
     }
+
+    public getVillagerStatuses():Array<VillagerStatus> {
+      var statuses:Array<VillagerStatus> = [];
+      for (let i=0, len=this.villagers.length; i < len; i++) {
+        let villager = this.villagers[i];
+        let status = villager.getStatus("");
+        statuses.push(status);
+      }
+      return statuses;
+    }
+    public getAdminName():string {
+      var admin = this.getVillager(this.adminkey);
+      if (admin) {
+        return admin.name;
+      }
+      return "";
+    };
     public getStatus(zinrokey:string):VillageStatus {
       return {
         name: this.name,
         state: this.state,
         phase: this.phase,
+        villagers: this.villagers,
         timelimit: this.timelimit,
-        admin: (zinrokey == this.admin) ? true : false,
+        admin: this.getAdminName(),
         setting: this.setting
       }
     };
@@ -176,6 +291,9 @@ module Zinro {
       return v;
     };
     public addVillager(key:string, name:string):Villager {
+      if (!key || !name) {
+        return null;
+      }
       if (this.keymap.hasOwnProperty(key) || this.namemap.hasOwnProperty(name)) {
         return null;
       }
@@ -232,7 +350,7 @@ module Zinro {
   class Country {
     private villages:Array<Village>;
     private namemap:{[key:string]:Village};    // name => village
-    private io:SocketIO.Namespace;
+    public io:SocketIO.Namespace;
 
     constructor(public name:string) {
       this.initialize();
@@ -256,19 +374,18 @@ module Zinro {
     };
     public addVillage(name:string, admin:string, setting:VillageSetting):Village {
       if (this.namemap.hasOwnProperty(name)) { return null; }
-      var village:Village = new Village(name, admin, setting);
+      var country:Country = this;
+      var village:Village = new Village(country, name, admin, setting);
       this.villages.push(village);
       this.namemap[name] = village;
       return village;
     }
-    public deleteVillage(name:string, admin:string) {
+    public deleteVillage(name:string) {
       var village:Village = this.namemap[name];
-      if (village.admin == admin) {
-        delete this.namemap[name];
-        let idx = this.villages.indexOf(village);
-        if (idx >= 0) {
-            this.villages.splice(idx, 1);
-        }
+      delete this.namemap[name];
+      let idx = this.villages.indexOf(village);
+      if (idx >= 0) {
+        this.villages.splice(idx, 1);
       }
     }
     public getVillageStatuses(key:string):Array<VillageStatus> {

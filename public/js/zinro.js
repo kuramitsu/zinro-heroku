@@ -76,15 +76,17 @@ var ZinroClient;
         return LS;
     }());
     var Client = (function () {
-        function Client(country_name, zinrokey) {
+        function Client(country_name, zinrokey, myname) {
+            if (myname === void 0) { myname = ""; }
             this.country_name = country_name;
             this.zinrokey = zinrokey;
             this.country_socket = null;
             this.village_socket = null;
             this.data = {
+                msgtbl: null,
                 country: null,
                 village: null,
-                msgtbl: null
+                my: null
             };
             this.initialize();
         }
@@ -106,17 +108,22 @@ var ZinroClient;
             };
             var village = {
                 name: "",
+                villagers: [],
                 state: "廃村",
                 phase: "吊",
                 timelimit: 0,
                 admin: null,
                 setting: null
             };
-            this.data = {
-                msgtbl: msgtbl,
-                country: country,
-                village: village
+            var my = {
+                name: "",
+                alive: null,
+                role: null
             };
+            this.data.msgtbl = msgtbl;
+            this.data.country = country;
+            this.data.village = village;
+            this.data.my = my;
         };
         Client.prototype.initCountrySocket = function () {
             var $$ = this;
@@ -144,6 +151,10 @@ var ZinroClient;
                 console.log(data);
                 $$.data.msgtbl[data.room] = data.messages;
             });
+            socket.on("villager_status", function (data) {
+                console.log(data);
+                $$.data.my = data;
+            });
             console.log(socket);
             this.village_socket = socket;
         };
@@ -161,6 +172,22 @@ var ZinroClient;
             };
             console.log(msg);
             this.village_socket.json.emit("message", msg);
+        };
+        Client.prototype.buildVillage = function (setting) {
+            var req = {
+                key: this.zinrokey,
+                setting: setting
+            };
+            console.log(req);
+            this.village_socket.json.emit("buildVillage", req);
+        };
+        Client.prototype.joinVillage = function (joinname) {
+            var req = {
+                key: this.zinrokey,
+                name: joinname
+            };
+            console.log(req);
+            this.village_socket.json.emit("joinVillage", req);
         };
         return Client;
     }());
@@ -181,6 +208,7 @@ var ZinroClient;
         '人狼': "狼",
         '妖狐': "狐"
     };
+    zclient.data.my.name = zls.name;
     var HeaderComponent = Vue.extend({
         template: "\n      <nav id=\"navheader\" class=\"navbar navbar-default navbar-static-top navbar-inverse\">\n        <div class=\"container\">\n          <div class=\"navbar-header\">\n            <a class=\"navbar-brand\"><slot>\u4EBA\u72FC</slot></a>\n          </div>\n        </div>\n      </nav>\n    "
     });
@@ -245,7 +273,7 @@ var ZinroClient;
             "z-header": HeaderComponent,
             "z-input": InputComponent
         },
-        template: "\n      <div>\n        <z-header>\u5EFA\u6751\u4E2D</z-header>\n        <div class=\"container\">\n          <form class=\"form-horizontal\">\n            <z-input id=\"name\" label=\"\u6751\u306E\u540D\u524D\" :model.sync=\"s.name\"></z-input>\n            <z-input id=\"daytime\" label=\"\u663C\u6642\u9593\uFF08\u79D2\uFF09\" :model.sync=\"s.daytime\" type=\"number\" :min=\"1\"></z-input>\n            <z-input id=\"nighttime\" label=\"\u591C\u6642\u9593\uFF08\u79D2\uFF09\" :model.sync=\"s.nighttime\" type=\"number\" :min=\"1\"></z-input>\n            <z-input id=\"hangtime\" label=\"\u540A\u6642\u9593\uFF08\u79D2\uFF09\" :model.sync=\"s.hangtime\" type=\"number\" :min=\"1\"></z-input>\n            <z-input id=\"bitetime\" label=\"\u565B\u6642\u9593\uFF08\u79D2\uFF09\" :model.sync=\"s.bitetime\" type=\"number\" :min=\"1\"></z-input>\n            <div class=\"form-group form-group-sm\">\n              <label for=\"inputVillageRoles\" class=\"col-sm-2 control-label\">\u69CB\u6210\u54E1</label>\n              <div class=\"col-sm-10 form-inline\">\n                <template v-for=\"role in roles\">\n                <label :for=\"role\" class=\"control-label\">[[role]]</label>\n                <input :id=\"role\" type=\"number\" class=\"form-control\" style=\"max-width:50px;\" v-model=\"s.rolenum[role]\" number min=0>\n                </template>\n              </div>\n            </div>\n            <div class=\"form-group form-group-sm\">\n                <div class=\"col-sm-offset-2 col-sm-10\">\n                    <div class=\"checkbox\">\n                        <label>\n                            <input id=\"firstnpc\" type=\"checkbox\" v-model=\"s.firstnpc\"> \u521D\u65E5NPC &nbsp;\n                        </label>\n                        <label>\n                            <input id=\"roledeath\" type=\"checkbox\" v-model=\"s.roledeath\"> \u521D\u65E5\u5F79\u8077\u6B7B &nbsp;\n                        </label>\n                        <label>\n                            <input id=\"zombie\" type=\"checkbox\" v-model=\"s.zombie\"> \u30BE\u30F3\u30D3\n                        </label>\n                    </div>\n                </div>\n            </div>\n          </form>\n          <ul style=\"color:red\">\n            <li v-for=\"error in errors\">[[error]]</li>\n          </ul>\n\n          <pre>[[s|json]]</pre>\n          <pre>[[humannum]]</pre>\n          <pre>[[wolfnum]]</pre>\n        </div>\n      </div>\n    ",
+        template: "\n      <div>\n        <z-header>\u5EFA\u6751\u4E2D</z-header>\n        <div class=\"container\">\n          <form class=\"form-horizontal\" @submit.prevent=\"buildVillage()\">\n            <z-input id=\"name\" label=\"\u6751\u306E\u540D\u524D\" :model.sync=\"s.name\"></z-input>\n            <z-input id=\"daytime\" label=\"\u663C\u6642\u9593\uFF08\u79D2\uFF09\" :model.sync=\"s.daytime\" type=\"number\" :min=\"1\"></z-input>\n            <z-input id=\"nighttime\" label=\"\u591C\u6642\u9593\uFF08\u79D2\uFF09\" :model.sync=\"s.nighttime\" type=\"number\" :min=\"1\"></z-input>\n            <z-input id=\"hangtime\" label=\"\u540A\u6642\u9593\uFF08\u79D2\uFF09\" :model.sync=\"s.hangtime\" type=\"number\" :min=\"1\"></z-input>\n            <z-input id=\"bitetime\" label=\"\u565B\u6642\u9593\uFF08\u79D2\uFF09\" :model.sync=\"s.bitetime\" type=\"number\" :min=\"1\"></z-input>\n            <div class=\"form-group form-group-sm\">\n              <label for=\"inputVillageRoles\" class=\"col-sm-2 control-label\">\u69CB\u6210\u54E1</label>\n              <div class=\"col-sm-10 form-inline\">\n                <div class=\"col-sm-2\" v-for=\"role in roles\">\n                <label :for=\"role\" class=\"control-label\">[[role]]</label>\n                <input :id=\"role\" type=\"number\" class=\"form-control\" style=\"max-width:50px; margin-right:5px;\" v-model=\"s.rolenum[role]\" number min=0>\n                </div>\n              </div>\n            </div>\n            <div class=\"form-group form-group-sm\">\n              <div class=\"col-sm-offset-2 col-sm-10\">\n                <div class=\"checkbox\">\n                  <label>\n                    <input id=\"firstnpc\" type=\"checkbox\" v-model=\"s.firstnpc\"> \u521D\u65E5NPC &nbsp;\n                  </label>\n                  <label>\n                    <input id=\"roledeath\" type=\"checkbox\" v-model=\"s.roledeath\"> \u521D\u65E5\u5F79\u8077\u6B7B &nbsp;\n                  </label>\n                  <label>\n                    <input id=\"zombie\" type=\"checkbox\" v-model=\"s.zombie\"> \u30BE\u30F3\u30D3\n                  </label>\n                </div>\n              </div>\n            </div>\n            <div class=\"form-group form-group-sm\">\n              <div class=\"col-sm-offset-2 col-sm-10\">\n                <button v-show=\"errors.length == 0\" type=\"submit\" class=\"btn btn-primary\">\u6751\u3092\u4F5C\u308B\uFF01</button>\n                <button v-show=\"errors.length > 0\" class=\"btn btn-primary disabled\" @click.prevent=\"\">\u6751\u3092\u4F5C\u308B\uFF01</button>\n                <ul style=\"color:red\">\n                  <li v-for=\"error in errors\">[[error]]</li>\n                </ul>\n              </div>\n            </div>\n          </form>\n          <pre>[[s|json]]</pre>\n        </div>\n      </div>\n    ",
         props: {
             zdata: Object
         },
@@ -298,6 +326,60 @@ var ZinroClient;
                 if (s.bitetime < 1)
                     errors.push("噛む時間が短すぎます。");
                 return errors;
+            }
+        },
+        methods: {
+            buildVillage: function () {
+                var setting = JSON.parse(JSON.stringify(this.s));
+                this.$dispatch('buildVillage', setting);
+            }
+        }
+    });
+    var RecruitView = Vue.extend({
+        components: {
+            "z-header": HeaderComponent,
+            "z-input": InputComponent
+        },
+        template: "\n      <div>\n        <z-header>\u6751\u6C11\u52DF\u96C6\u4E2D... \u5F8C [[recruitnum]] \u4EBA\uFF01 \uFF08[[timelimit]]\u79D2\uFF09</z-header>\n        <div class=\"container\">\n          <div v-show=\"myrole\">\n            [[myname]]\u3055\u3093\u306E\u5F79\u8077\u306F\u2026\u300C[[myrole]]\u300D\u3067\u3059\uFF01\n          </div>\n          <form v-show=\"!myrole\" class=\"form-horizontal\" @submit.prevent=\"joinVillage()\">\n            <z-input id=\"myname\" label=\"\u304A\u540D\u524D\" :model.sync=\"myname\"></z-input>\n            <div class=\"form-group form-group-sm\">\n              <div class=\"col-sm-offset-2 col-sm-10\">\n                <button v-show=\"errors.length == 0\" type=\"submit\" class=\"btn btn-primary\">\u4F4F\u5C45\u7533\u8ACB</button>\n                <button v-show=\"errors.length > 0\" class=\"btn btn-primary disabled\" @click.prevent=\"\">\u4F4F\u5C45\u7533\u8ACB</button>\n                <ul style=\"color:red\">\n                  <li v-for=\"error in errors\">[[error]]</li>\n                </ul>\n              </div>\n            </div>\n          </form>\n\n          <hr>\n\n          <h4>\u6751\u6C11\u4E00\u89A7</h4>\n          <ul>\n            <li v-for=\"v in villagers\">[[v.name]]</li>\n          </ul>\n\n          <hr>\n          <h4>\u5F79\u8077\u4E00\u89A7</h4>\n          <ul>\n            <li v-for=\"(role, num) in s.rolenum\" v-show=\"num > 0\">\n              [[role]]: [[num]]\u4EBA\n            </li>\n          </ul>\n        </div>\n      </div>\n    ",
+        props: {
+            zdata: Object,
+            zname: String
+        },
+        data: function () {
+            return {
+                myname: JSON.parse(JSON.stringify(this.zname))
+            };
+        },
+        computed: {
+            s: function () {
+                var $$ = this.zdata;
+                return $$.village.setting;
+            },
+            villagers: function () {
+                var $$ = this.zdata;
+                return $$.village.villagers;
+            },
+            myrole: function () {
+                var $$ = this.zdata;
+                return $$.my.role;
+            },
+            errors: function () {
+                var errors = [];
+                if (!this.myname)
+                    errors.push("お名前が空です");
+                return errors;
+            },
+            recruitnum: function () {
+                return 10;
+            },
+            timelimit: function () {
+                return 300;
+            }
+        },
+        methods: {
+            joinVillage: function () {
+                var joinname = this.myname;
+                this.$dispatch('joinVillage', joinname);
             }
         }
     });
@@ -368,7 +450,7 @@ var ZinroClient;
         components: {
             "Index": IndexView,
             "Build": BuildView,
-            "Abandoned": AbandonedView,
+            "Recruit": RecruitView,
             "VillagerChat": VillagerChatView
         },
         data: {
@@ -383,8 +465,13 @@ var ZinroClient;
                 if (!$$.village.name) {
                     return "Index";
                 }
-                if ($$.village.state == "廃村") {
-                    return "Build";
+                else {
+                    if ($$.village.state == "廃村") {
+                        return "Build";
+                    }
+                    else if ($$.village.state == "村民募集中") {
+                        return "Recruit";
+                    }
                 }
                 return "VillagerChat";
             },
@@ -424,6 +511,19 @@ var ZinroClient;
             },
             selectVillage: function (village) {
                 this.select_village_name = village.name;
+                zls.village = village.name;
+            },
+            buildVillage: function (setting) {
+                zclient.buildVillage(setting);
+            },
+            joinVillage: function (joinname) {
+                zclient.joinVillage(joinname);
+                zls.name = joinname;
+            }
+        },
+        ready: function () {
+            if (zls.village) {
+                this.select_village_name = zls.village;
             }
         }
     });

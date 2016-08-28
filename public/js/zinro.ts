@@ -66,17 +66,19 @@ module ZinroClient {
     country: CountryStatus;
     village: VillageStatus;
     msgtbl: MessageTable;
+    my: VillagerStatus;
   }
 
   class Client {
     public data: ClientData;
     private country_socket: Socket = null;
     private village_socket: Socket = null;
-    constructor(public country_name:string, public zinrokey:string) {
+    constructor(public country_name:string, public zinrokey:string, myname:string="") {
       this.data = {
+        msgtbl: null,
         country: null,
         village: null,
-        msgtbl: null
+        my: null
       }
       this.initialize();
     };
@@ -97,17 +99,22 @@ module ZinroClient {
       }
       var village:VillageStatus = {
         name: "",
+        villagers: [],
         state: "廃村",
         phase: "吊",
         timelimit: 0,
         admin: null,
         setting: null
       }
-      this.data = {
-        msgtbl: msgtbl,
-        country: country,
-        village: village
+      var my:VillagerStatus = {
+        name: "",
+        alive: null,
+        role: null
       }
+      this.data.msgtbl = msgtbl;
+      this.data.country = country;
+      this.data.village = village;
+      this.data.my = my;
     }
     public initCountrySocket() {
       var $$ = this;
@@ -135,6 +142,11 @@ module ZinroClient {
         console.log(data);
         $$.data.msgtbl[data.room] = data.messages;
       })
+      socket.on("villager_status", function(data:VillagerStatus) {
+        console.log(data);
+        $$.data.my = data;
+      })
+
       console.log(socket);
       this.village_socket = socket;
     }
@@ -152,6 +164,22 @@ module ZinroClient {
       }
       console.log(msg)
       this.village_socket.json.emit("message", msg);
+    }
+    public buildVillage(setting:VillageSetting) {
+      let req:BuildVillageRequest = {
+        key: this.zinrokey,
+        setting: setting
+      }
+      console.log(req);
+      this.village_socket.json.emit("buildVillage", req);
+    }
+    public joinVillage(joinname:string) {
+      let req:JoinVillageRequest = {
+        key: this.zinrokey,
+        name: joinname
+      }
+      console.log(req);
+      this.village_socket.json.emit("joinVillage", req);
     }
   }
 
@@ -173,6 +201,7 @@ module ZinroClient {
     '人狼': "狼",
     '妖狐': "狐"
   }
+  zclient.data.my.name = zls.name;
 
   // ビュー
   var HeaderComponent = Vue.extend({
@@ -219,7 +248,6 @@ module ZinroClient {
     methods: {
       selectVillage: function(village:VillageStatus) {
         console.log(JSON.parse(JSON.stringify(village)));
-
         this.$dispatch('selectVillage', village);
       },
       badgeStyle: function(village:VillageStatus) {
@@ -278,7 +306,7 @@ module ZinroClient {
       <div>
         <z-header>建村中</z-header>
         <div class="container">
-          <form class="form-horizontal">
+          <form class="form-horizontal" @submit.prevent="buildVillage()">
             <z-input id="name" label="村の名前" :model.sync="s.name"></z-input>
             <z-input id="daytime" label="昼時間（秒）" :model.sync="s.daytime" type="number" :min="1"></z-input>
             <z-input id="nighttime" label="夜時間（秒）" :model.sync="s.nighttime" type="number" :min="1"></z-input>
@@ -287,35 +315,38 @@ module ZinroClient {
             <div class="form-group form-group-sm">
               <label for="inputVillageRoles" class="col-sm-2 control-label">構成員</label>
               <div class="col-sm-10 form-inline">
-                <template v-for="role in roles">
+                <div class="col-sm-2" v-for="role in roles">
                 <label :for="role" class="control-label">[[role]]</label>
-                <input :id="role" type="number" class="form-control" style="max-width:50px;" v-model="s.rolenum[role]" number min=0>
-                </template>
+                <input :id="role" type="number" class="form-control" style="max-width:50px; margin-right:5px;" v-model="s.rolenum[role]" number min=0>
+                </div>
               </div>
             </div>
             <div class="form-group form-group-sm">
-                <div class="col-sm-offset-2 col-sm-10">
-                    <div class="checkbox">
-                        <label>
-                            <input id="firstnpc" type="checkbox" v-model="s.firstnpc"> 初日NPC &nbsp;
-                        </label>
-                        <label>
-                            <input id="roledeath" type="checkbox" v-model="s.roledeath"> 初日役職死 &nbsp;
-                        </label>
-                        <label>
-                            <input id="zombie" type="checkbox" v-model="s.zombie"> ゾンビ
-                        </label>
-                    </div>
+              <div class="col-sm-offset-2 col-sm-10">
+                <div class="checkbox">
+                  <label>
+                    <input id="firstnpc" type="checkbox" v-model="s.firstnpc"> 初日NPC &nbsp;
+                  </label>
+                  <label>
+                    <input id="roledeath" type="checkbox" v-model="s.roledeath"> 初日役職死 &nbsp;
+                  </label>
+                  <label>
+                    <input id="zombie" type="checkbox" v-model="s.zombie"> ゾンビ
+                  </label>
                 </div>
+              </div>
+            </div>
+            <div class="form-group form-group-sm">
+              <div class="col-sm-offset-2 col-sm-10">
+                <button v-show="errors.length == 0" type="submit" class="btn btn-primary">村を作る！</button>
+                <button v-show="errors.length > 0" class="btn btn-primary disabled" @click.prevent="">村を作る！</button>
+                <ul style="color:red">
+                  <li v-for="error in errors">[[error]]</li>
+                </ul>
+              </div>
             </div>
           </form>
-          <ul style="color:red">
-            <li v-for="error in errors">[[error]]</li>
-          </ul>
-
           <pre>[[s|json]]</pre>
-          <pre>[[humannum]]</pre>
-          <pre>[[wolfnum]]</pre>
         </div>
       </div>
     `,
@@ -366,8 +397,100 @@ module ZinroClient {
 
         return errors;
       }
+    },
+    methods: {
+      buildVillage: function() {
+        let setting:VillageSetting = JSON.parse(JSON.stringify(this.s));
+        this.$dispatch('buildVillage', setting);
+      }
     }
   })
+
+  var RecruitView = Vue.extend({
+    components: {
+      "z-header": HeaderComponent,
+      "z-input": InputComponent
+    },
+    template: `
+      <div>
+        <z-header>村民募集中... 後 [[recruitnum]] 人！ （[[timelimit]]秒）</z-header>
+        <div class="container">
+          <div v-show="myrole">
+            [[myname]]さんの役職は…「[[myrole]]」です！
+          </div>
+          <form v-show="!myrole" class="form-horizontal" @submit.prevent="joinVillage()">
+            <z-input id="myname" label="お名前" :model.sync="myname"></z-input>
+            <div class="form-group form-group-sm">
+              <div class="col-sm-offset-2 col-sm-10">
+                <button v-show="errors.length == 0" type="submit" class="btn btn-primary">住居申請</button>
+                <button v-show="errors.length > 0" class="btn btn-primary disabled" @click.prevent="">住居申請</button>
+                <ul style="color:red">
+                  <li v-for="error in errors">[[error]]</li>
+                </ul>
+              </div>
+            </div>
+          </form>
+
+          <hr>
+
+          <h4>村民一覧</h4>
+          <ul>
+            <li v-for="v in villagers">[[v.name]]</li>
+          </ul>
+
+          <hr>
+          <h4>役職一覧</h4>
+          <ul>
+            <li v-for="(role, num) in s.rolenum" v-show="num > 0">
+              [[role]]: [[num]]人
+            </li>
+          </ul>
+        </div>
+      </div>
+    `,
+    props: {
+      zdata: Object,
+      zname: String
+    },
+    data: function() {
+      return {
+        myname: JSON.parse(JSON.stringify(this.zname))
+      };
+    },
+    computed: {
+      s: function():VillageSetting {
+        let $$:ClientData = this.zdata;
+        return $$.village.setting;
+      },
+      villagers: function():Array<VillagerStatus> {
+        let $$:ClientData = this.zdata;
+        return $$.village.villagers;
+      },
+      myrole: function():Role {
+        let $$:ClientData = this.zdata;
+        return $$.my.role;
+      },
+      errors: function():Array<string> {
+        var errors:Array<string> = [];
+        if (!this.myname) errors.push("お名前が空です");
+        return errors;
+      },
+      recruitnum: function():number {
+        return 10;
+      },
+      timelimit: function():number {
+        return 300;
+      }
+    },
+    methods: {
+      joinVillage: function() {
+        let joinname:string = this.myname;
+        this.$dispatch('joinVillage', joinname);
+      }
+    }
+  })
+
+
 
   var ChatComponent = Vue.extend({
     filters: {
@@ -466,7 +589,7 @@ module ZinroClient {
     components: {
       "Index": IndexView,
       "Build": BuildView,
-      "Abandoned": AbandonedView,       // 廃村
+      "Recruit": RecruitView,
       "VillagerChat": VillagerChatView  // 村会チャット
     },
     data: {
@@ -480,9 +603,12 @@ module ZinroClient {
         let $$:ClientData = this.zdata;
         if (!$$.village.name) {
           return "Index";
-        }
-        if ($$.village.state == "廃村") {
-          return "Build";
+        } else {
+          if ($$.village.state == "廃村") {
+            return "Build";
+          } else if ($$.village.state == "村民募集中") {
+            return "Recruit";
+          }
         }
         //let v:string = zls.village;
         return "VillagerChat";
@@ -514,7 +640,6 @@ module ZinroClient {
         console.log(vname)
         if (vname) {
           zclient.initVillageSocket(vname);
-
           zclient.fetchVillageStatus();
         }
       }
@@ -526,8 +651,21 @@ module ZinroClient {
         console.log(msg)
       },
       selectVillage: function(village:VillageStatus) {
-
         this.select_village_name = village.name;
+        zls.village = village.name;
+      },
+      buildVillage: function(setting:VillageSetting) {
+        zclient.buildVillage(setting);
+      },
+      joinVillage: function(joinname:string) {
+        zclient.joinVillage(joinname);
+        zls.name = joinname;
+      }
+    },
+    ready: function() {
+      // 初期ステータスの取得
+      if (zls.village) {
+        this.select_village_name = zls.village;
       }
     }
   })

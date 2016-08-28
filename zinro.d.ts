@@ -23,7 +23,6 @@ type MessageTable = {
   sharer: Array<ReceivedMessage>;
 };
 
-
 // 村の状態
 type VillageState = "廃村" | "村民募集中" | "戦闘中" | "終戦";
 type CombatPhase = "昼" | "吊" | "夜" | "噛";
@@ -51,19 +50,26 @@ type VillageSetting = {
 type VillageStatusRequest = {
   key: string;
 }
+
+
 type VillageStatus = {    // VueとClassを併用するためにデータの階層を1つ作る
   name: string;
   state: VillageState;
   phase: CombatPhase;
-  setting: VillageSetting,
+  setting: VillageSetting;
+  villagers: Array<VillagerStatus>;
   timelimit: number;
-  admin: boolean;         // 村の管理者の場合はTrue
+  admin: string;         // 村の管理者名　（キーじゃないので注意）
 }
 type BuildVillageRequest = {
   key: string;
-  name: string;
   setting: VillageSetting;
 }
+type JoinVillageRequest = {
+  key: string;
+  name: string;
+}
+
 type Role = "村人" | "人狼" | "占い師" | "狂人"  | "狩人" | "霊能者" | "共有者" | "妖狐"
 type Family = "人" | "狼" | "狐"
 type RoleDetail = {

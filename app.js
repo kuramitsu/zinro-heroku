@@ -61,6 +61,83 @@ var Zinro;
             divination: '村人'
         }
     };
+    function isInteger(o) {
+        if (typeof o == "number" && parseInt(o) === o)
+            return true;
+        return false;
+    }
+    function isString(o, minlen) {
+        if (minlen === void 0) { minlen = 0; }
+        if (typeof o == "string" && o.length >= minlen)
+            return true;
+        return false;
+    }
+    function isBoolean(o) {
+        if (typeof o == "boolean")
+            return true;
+        return false;
+    }
+    function validVillageSetting(s) {
+        var wolfnum = s.rolenum.人狼;
+        var humannum = 0;
+        for (var i = 0, len = zroles.length; i < len; i++) {
+            var role = zroles[i];
+            if (zroletbl[role].family == "人")
+                humannum += 1;
+        }
+        var errors = [];
+        if (!isString(s.name))
+            errors.push("nameの型が不正");
+        if (!isInteger(s.daytime))
+            errors.push("daytimeの型が不正");
+        if (!isInteger(s.nighttime))
+            errors.push("nighttimeの型が不正");
+        if (!isInteger(s.hangtime))
+            errors.push("hangtimeの型が不正");
+        if (!isInteger(s.bitetime))
+            errors.push("bitetimeの型が不正");
+        if (!isInteger(s.endtime))
+            errors.push("endtimeの型が不正");
+        if (s.rolenum) {
+            for (var i = 0, len = zroles.length; i < len; i++) {
+                var role = zroles[i];
+                if (!isInteger(s.rolenum[role]))
+                    errors.push("rolenumの型が不正");
+            }
+        }
+        else {
+            errors.push("rolenumの型が不正");
+        }
+        if (!isBoolean(s.firstnpc))
+            errors.push("firstnpcの型が不正");
+        if (!isBoolean(s.roledeath))
+            errors.push("roledeathの型が不正");
+        if (!isBoolean(s.zombie))
+            errors.push("zombieの型が不正");
+        if (errors.length > 0) {
+            console.log(errors);
+            return false;
+        }
+        if (!s.name)
+            errors.push("村の名前がありません。");
+        if (wolfnum < 1)
+            errors.push("人狼がいません。");
+        if (humannum <= wolfnum + 1)
+            errors.push("人間が少なすぎます。");
+        if (s.daytime < 1)
+            errors.push("昼の時間が短すぎます。");
+        if (s.nighttime < 1)
+            errors.push("夜の時間が短すぎます。");
+        if (s.hangtime < 1)
+            errors.push("吊る時間が短すぎます。");
+        if (s.bitetime < 1)
+            errors.push("噛む時間が短すぎます。");
+        if (errors.length > 0) {
+            console.log(errors);
+            return false;
+        }
+        return true;
+    }
     var Villager = (function () {
         function Villager(key, name, role) {
             this.key = key;
@@ -79,9 +156,10 @@ var Zinro;
         return Villager;
     }());
     var Village = (function () {
-        function Village(name, admin, setting) {
+        function Village(country, name, adminkey, setting) {
+            this.country = country;
             this.name = name;
-            this.admin = admin;
+            this.adminkey = adminkey;
             this.setting = setting;
             this.msgtbl = {
                 villager: [],
@@ -96,6 +174,9 @@ var Zinro;
             this.state = "廃村";
             this.phase = "吊";
             this.timelimit = 0;
+            this.villagers = [];
+            this.keymap = {};
+            this.namemap = {};
             this.clearMessageTable();
             this.initSocket();
         };
@@ -124,9 +205,37 @@ var Zinro;
                 });
                 socket.on("status", function (data) {
                     console.log(data);
-                    var status = $$.getStatus(data.key);
-                    console.log(status);
-                    socket.json.emit("status", status);
+                    var village_status = $$.getStatus(data.key);
+                    console.log(village_status);
+                    socket.json.emit("status", village_status);
+                    var villager = $$.keymap[data.key];
+                    if (villager) {
+                        var villager_status = villager.getStatus(data.key);
+                        socket.json.emit("villager_status", villager_status);
+                    }
+                });
+                socket.on("buildVillage", function (data) {
+                    console.log(data);
+                    if ($$.state == "廃村" && validVillageSetting(data.setting)) {
+                        $$.adminkey = data.key;
+                        $$.setting = data.setting;
+                        $$.state = "村民募集中";
+                        $$.timelimit = 300;
+                        var status = $$.getStatus(data.key);
+                        $$.io.json.emit("status", status);
+                        var country_status = $$.country.getCountryStatus("");
+                        console.log(country_status);
+                        $$.country.io.json.emit("status", country_status);
+                    }
+                });
+                socket.on("joinVillage", function (data) {
+                    var villager = $$.addVillager(data.key, data.name);
+                    if (villager) {
+                        var villager_status = villager.getStatus(data.key);
+                        socket.json.emit("villager_status", villager_status);
+                        var village_status = $$.getStatus("");
+                        $$.io.json.emit("status", village_status);
+                    }
                 });
             });
         };
@@ -136,13 +245,31 @@ var Zinro;
             this.msgtbl.werewolf = [];
             this.msgtbl.sharer = [];
         };
+        Village.prototype.getVillagerStatuses = function () {
+            var statuses = [];
+            for (var i = 0, len = this.villagers.length; i < len; i++) {
+                var villager = this.villagers[i];
+                var status_1 = villager.getStatus("");
+                statuses.push(status_1);
+            }
+            return statuses;
+        };
+        Village.prototype.getAdminName = function () {
+            var admin = this.getVillager(this.adminkey);
+            if (admin) {
+                return admin.name;
+            }
+            return "";
+        };
+        ;
         Village.prototype.getStatus = function (zinrokey) {
             return {
                 name: this.name,
                 state: this.state,
                 phase: this.phase,
+                villagers: this.villagers,
                 timelimit: this.timelimit,
-                admin: (zinrokey == this.admin) ? true : false,
+                admin: this.getAdminName(),
                 setting: this.setting
             };
         };
@@ -153,6 +280,9 @@ var Zinro;
         };
         ;
         Village.prototype.addVillager = function (key, name) {
+            if (!key || !name) {
+                return null;
+            }
             if (this.keymap.hasOwnProperty(key) || this.namemap.hasOwnProperty(name)) {
                 return null;
             }
@@ -229,19 +359,18 @@ var Zinro;
             if (this.namemap.hasOwnProperty(name)) {
                 return null;
             }
-            var village = new Village(name, admin, setting);
+            var country = this;
+            var village = new Village(country, name, admin, setting);
             this.villages.push(village);
             this.namemap[name] = village;
             return village;
         };
-        Country.prototype.deleteVillage = function (name, admin) {
+        Country.prototype.deleteVillage = function (name) {
             var village = this.namemap[name];
-            if (village.admin == admin) {
-                delete this.namemap[name];
-                var idx = this.villages.indexOf(village);
-                if (idx >= 0) {
-                    this.villages.splice(idx, 1);
-                }
+            delete this.namemap[name];
+            var idx = this.villages.indexOf(village);
+            if (idx >= 0) {
+                this.villages.splice(idx, 1);
             }
         };
         Country.prototype.getVillageStatuses = function (key) {
