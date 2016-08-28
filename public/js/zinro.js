@@ -107,6 +107,7 @@ var ZinroClient;
                 villages: []
             };
             var village = {
+                id: "",
                 name: "",
                 villagers: [],
                 state: "廃村",
@@ -140,9 +141,9 @@ var ZinroClient;
             };
             this.country_socket.json.emit("status", req);
         };
-        Client.prototype.initVillageSocket = function (village_name) {
+        Client.prototype.initVillageSocket = function (village_id) {
             var $$ = this;
-            var socket = io.connect("/villages/" + village_name);
+            var socket = io.connect("/villages/" + village_id);
             socket.on("status", function (data) {
                 console.log(data);
                 $$.data.village = data;
@@ -216,7 +217,7 @@ var ZinroClient;
         components: {
             "z-header": HeaderComponent
         },
-        template: "\n      <div>\n        <z-header>[[country.name]]</z-header>\n        <div class=\"container\">\n          <div class=\"list-group\">\n            <a v-for=\"village in country.villages\" track-by=\"name\"\n            href=\"#\" class=\"list-group-item\"\n            @click=\"selectVillage(village)\">\n              <span>[[village.name]]</span>\n              <span class=\"badge\" :style=\"badgeStyle(village)\">[[village.state]]</span>\n            </a>\n          </div>\n        </div>\n      </div>\n    ",
+        template: "\n      <div>\n        <z-header>[[country.name]]</z-header>\n        <div class=\"container\">\n          <div class=\"list-group\">\n            <a v-for=\"village in country.villages\" track-by=\"name\"\n            href=\"#\" class=\"list-group-item\"\n            @click=\"selectVillage(village.id)\">\n              <span>[[village.name]]</span>\n              <span class=\"badge\" :style=\"badgeStyle(village)\">[[village.state]]</span>\n            </a>\n          </div>\n        </div>\n      </div>\n    ",
         props: {
             zdata: Object
         },
@@ -227,9 +228,9 @@ var ZinroClient;
             }
         },
         methods: {
-            selectVillage: function (village) {
-                console.log(JSON.parse(JSON.stringify(village)));
-                this.$dispatch('selectVillage', village);
+            selectVillage: function (village_id) {
+                console.log(JSON.parse(JSON.stringify(village_id)));
+                this.$dispatch('selectVillage', village_id);
             },
             badgeStyle: function (village) {
                 var style = {};
@@ -340,7 +341,7 @@ var ZinroClient;
             "z-header": HeaderComponent,
             "z-input": InputComponent
         },
-        template: "\n      <div>\n        <z-header>\u6751\u6C11\u52DF\u96C6\u4E2D... \u5F8C [[recruitnum]] \u4EBA\uFF01 \uFF08[[timelimit]]\u79D2\uFF09</z-header>\n        <div class=\"container\">\n          <div v-show=\"myrole\">\n            [[myname]]\u3055\u3093\u306E\u5F79\u8077\u306F\u2026\u300C[[myrole]]\u300D\u3067\u3059\uFF01\n          </div>\n          <form v-show=\"!myrole\" class=\"form-horizontal\" @submit.prevent=\"joinVillage()\">\n            <z-input id=\"myname\" label=\"\u304A\u540D\u524D\" :model.sync=\"myname\"></z-input>\n            <div class=\"form-group form-group-sm\">\n              <div class=\"col-sm-offset-2 col-sm-10\">\n                <button v-show=\"errors.length == 0\" type=\"submit\" class=\"btn btn-primary\">\u4F4F\u5C45\u7533\u8ACB</button>\n                <button v-show=\"errors.length > 0\" class=\"btn btn-primary disabled\" @click.prevent=\"\">\u4F4F\u5C45\u7533\u8ACB</button>\n                <ul style=\"color:red\">\n                  <li v-for=\"error in errors\">[[error]]</li>\n                </ul>\n              </div>\n            </div>\n          </form>\n\n          <hr>\n\n          <h4>\u6751\u6C11\u4E00\u89A7</h4>\n          <ul>\n            <li v-for=\"v in villagers\">[[v.name]]</li>\n          </ul>\n\n          <hr>\n          <h4>\u5F79\u8077\u4E00\u89A7</h4>\n          <ul>\n            <li v-for=\"(role, num) in s.rolenum\" v-show=\"num > 0\">\n              [[role]]: [[num]]\u4EBA\n            </li>\n          </ul>\n        </div>\n      </div>\n    ",
+        template: "\n      <div>\n        <z-header>[[s.name]] ... \u5F8C [[recruitnum]] \u4EBA\uFF01 \uFF08\u6B8B[[timelimit]]\u79D2\uFF09</z-header>\n        <div class=\"container\">\n          <div v-show=\"myrole\">\n            [[myname]]\u3055\u3093\u306E\u5F79\u8077\u306F\u2026\u300C[[myrole]]\u300D\u3067\u3059\uFF01\n          </div>\n          <form v-show=\"!myrole\" class=\"form-horizontal\" @submit.prevent=\"joinVillage()\">\n            <z-input id=\"myname\" label=\"\u304A\u540D\u524D\" :model.sync=\"myname\"></z-input>\n            <div class=\"form-group form-group-sm\">\n              <div class=\"col-sm-offset-2 col-sm-10\">\n                <button v-show=\"errors.length == 0\" type=\"submit\" class=\"btn btn-primary\">\u4F4F\u5C45\u7533\u8ACB</button>\n                <button v-show=\"errors.length > 0\" class=\"btn btn-primary disabled\" @click.prevent=\"\">\u4F4F\u5C45\u7533\u8ACB</button>\n                <button class=\"btn btn-defalut\" @click.prevent=\"returnHome()\">\u6751\u306E\u9078\u629E\u306B\u623B\u308B</button>\n                <ul style=\"color:red\">\n                  <li v-for=\"error in errors\">[[error]]</li>\n                </ul>\n              </div>\n            </div>\n          </form>\n\n          <hr>\n          <h4>\u6751\u6C11\u540D\u7C3F</h4>\n          <ul>\n            <li v-for=\"v in villagers\">[[v.name]]</li>\n          </ul>\n\n          <h4>\u52DF\u96C6\u5F79\u8077</h4>\n          <ul>\n            <li v-for=\"(role, num) in s.rolenum\" v-show=\"num > 0\">\n              [[role]]: [[num]]\u4EBA\n            </li>\n          </ul>\n        </div>\n      </div>\n    ",
         props: {
             zdata: Object,
             zname: String
@@ -380,6 +381,9 @@ var ZinroClient;
             joinVillage: function () {
                 var joinname = this.myname;
                 this.$dispatch('joinVillage', joinname);
+            },
+            returnHome: function () {
+                this.$dispatch('selectVillage', "");
             }
         }
     });
@@ -457,7 +461,7 @@ var ZinroClient;
             zdata: zclient.data,
             zkey: zclient.zinrokey,
             zname: zls.name,
-            select_village_name: ""
+            select_village_id: ""
         },
         computed: {
             current_view: function () {
@@ -483,23 +487,12 @@ var ZinroClient;
                 return $$.village.name;
             }
         },
-        methods: {
-            connectVillage: function (name) {
-                var socket = io.connect("/villages/" + name);
-                socket.on("message", function (data) {
-                    console.log(data);
-                    socket[data.room] = data.messages;
-                });
-                socket.on("status", function (data) {
-                    console.log(data);
-                });
-            }
-        },
         watch: {
-            select_village_name: function (vname) {
-                console.log(vname);
-                if (vname) {
-                    zclient.initVillageSocket(vname);
+            select_village_id: function (village_id) {
+                console.log(village_id);
+                zclient.initialize();
+                if (village_id) {
+                    zclient.initVillageSocket(village_id);
                     zclient.fetchVillageStatus();
                 }
             }
@@ -509,9 +502,9 @@ var ZinroClient;
                 zclient.sendMessage(msg.room, msg.text);
                 console.log(msg);
             },
-            selectVillage: function (village) {
-                this.select_village_name = village.name;
-                zls.village = village.name;
+            selectVillage: function (village_id) {
+                this.select_village_id = village_id;
+                zls.village = village_id;
             },
             buildVillage: function (setting) {
                 zclient.buildVillage(setting);
@@ -523,7 +516,7 @@ var ZinroClient;
         },
         ready: function () {
             if (zls.village) {
-                this.select_village_name = zls.village;
+                this.select_village_id = zls.village;
             }
         }
     });

@@ -98,6 +98,7 @@ module ZinroClient {
         villages: []
       }
       var village:VillageStatus = {
+        id: "",
         name: "",
         villagers: [],
         state: "廃村",
@@ -131,9 +132,9 @@ module ZinroClient {
       }
       this.country_socket.json.emit("status", req)
     }
-    public initVillageSocket(village_name:string) {
+    public initVillageSocket(village_id:string) {
       var $$ = this;
-      var socket = <Socket>io.connect(`/villages/${village_name}`);
+      var socket = <Socket>io.connect(`/villages/${village_id}`);
       socket.on("status", function(data:VillageStatus) {
         console.log(data);
         $$.data.village = data;
@@ -228,7 +229,7 @@ module ZinroClient {
           <div class="list-group">
             <a v-for="village in country.villages" track-by="name"
             href="#" class="list-group-item"
-            @click="selectVillage(village)">
+            @click="selectVillage(village.id)">
               <span>[[village.name]]</span>
               <span class="badge" :style="badgeStyle(village)">[[village.state]]</span>
             </a>
@@ -246,9 +247,9 @@ module ZinroClient {
       }
     },
     methods: {
-      selectVillage: function(village:VillageStatus) {
-        console.log(JSON.parse(JSON.stringify(village)));
-        this.$dispatch('selectVillage', village);
+      selectVillage: function(village_id:string) {
+        console.log(JSON.parse(JSON.stringify(village_id)));
+        this.$dispatch('selectVillage', village_id);
       },
       badgeStyle: function(village:VillageStatus) {
         var style = {};
@@ -413,7 +414,7 @@ module ZinroClient {
     },
     template: `
       <div>
-        <z-header>村民募集中... 後 [[recruitnum]] 人！ （[[timelimit]]秒）</z-header>
+        <z-header>[[s.name]] ... 後 [[recruitnum]] 人！ （残[[timelimit]]秒）</z-header>
         <div class="container">
           <div v-show="myrole">
             [[myname]]さんの役職は…「[[myrole]]」です！
@@ -424,6 +425,7 @@ module ZinroClient {
               <div class="col-sm-offset-2 col-sm-10">
                 <button v-show="errors.length == 0" type="submit" class="btn btn-primary">住居申請</button>
                 <button v-show="errors.length > 0" class="btn btn-primary disabled" @click.prevent="">住居申請</button>
+                <button class="btn btn-defalut" @click.prevent="returnHome()">村の選択に戻る</button>
                 <ul style="color:red">
                   <li v-for="error in errors">[[error]]</li>
                 </ul>
@@ -432,14 +434,12 @@ module ZinroClient {
           </form>
 
           <hr>
-
-          <h4>村民一覧</h4>
+          <h4>村民名簿</h4>
           <ul>
             <li v-for="v in villagers">[[v.name]]</li>
           </ul>
 
-          <hr>
-          <h4>役職一覧</h4>
+          <h4>募集役職</h4>
           <ul>
             <li v-for="(role, num) in s.rolenum" v-show="num > 0">
               [[role]]: [[num]]人
@@ -486,6 +486,9 @@ module ZinroClient {
       joinVillage: function() {
         let joinname:string = this.myname;
         this.$dispatch('joinVillage', joinname);
+      },
+      returnHome: function() {
+        this.$dispatch('selectVillage', "");
       }
     }
   })
@@ -596,7 +599,7 @@ module ZinroClient {
       zdata: zclient.data,
       zkey: zclient.zinrokey,
       zname: zls.name,
-      select_village_name: ""
+      select_village_id: ""
     },
     computed: {
       current_view: function():string {
@@ -621,25 +624,12 @@ module ZinroClient {
         return $$.village.name;
       }
     },
-    methods: {
-      connectVillage: function(name:string) {
-        var socket = <Socket>io.connect(`/villages/${name}`);
-        socket.on("message", function(data:ReceivedMessageData) {
-          console.log(data);
-          socket[data.room] = data.messages;
-        })
-        socket.on("status", function(data:VillageStatus) {
-          console.log(data);
-          // updateVillageStatus(data);
-        })
-
-      }
-    },
     watch: {
-      select_village_name: function(vname:string) { // 村の選択が変わったら接続し直し
-        console.log(vname)
-        if (vname) {
-          zclient.initVillageSocket(vname);
+      select_village_id: function(village_id:string) { // 村の選択が変わったら接続し直し
+        console.log(village_id)
+        zclient.initialize()
+        if (village_id) {
+          zclient.initVillageSocket(village_id);
           zclient.fetchVillageStatus();
         }
       }
@@ -650,9 +640,9 @@ module ZinroClient {
         // io_village.json.emit("message", msg);
         console.log(msg)
       },
-      selectVillage: function(village:VillageStatus) {
-        this.select_village_name = village.name;
-        zls.village = village.name;
+      selectVillage: function(village_id:string) {
+        this.select_village_id = village_id;
+        zls.village = village_id;
       },
       buildVillage: function(setting:VillageSetting) {
         zclient.buildVillage(setting);
@@ -665,7 +655,7 @@ module ZinroClient {
     ready: function() {
       // 初期ステータスの取得
       if (zls.village) {
-        this.select_village_name = zls.village;
+        this.select_village_id = zls.village;
       }
     }
   })

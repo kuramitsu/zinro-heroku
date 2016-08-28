@@ -53,6 +53,7 @@ type VillageStatusRequest = {
 
 
 type VillageStatus = {    // VueとClassを併用するためにデータの階層を1つ作る
+  id: string;
   name: string;
   state: VillageState;
   phase: CombatPhase;

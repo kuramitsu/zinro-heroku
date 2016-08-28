@@ -20,6 +20,8 @@
 <body>
   <div id="zinro">
     <component :is="current_view" :zdata="zdata" :zkey="zkey" :zname="zname" keep-alive></component>
+    <pre>current_view = [[current_view|json]]</pre>
+    <pre>zdata = [[zdata|json]]</pre>
   </div>
   <script src="/js/zinro.js"></script>
 </body>

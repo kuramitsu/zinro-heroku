@@ -156,20 +156,26 @@ var Zinro;
         return Villager;
     }());
     var Village = (function () {
-        function Village(country, name, adminkey, setting) {
+        function Village(id, country, setting, adminkey) {
+            this.id = id;
             this.country = country;
-            this.name = name;
-            this.adminkey = adminkey;
             this.setting = setting;
+            this.adminkey = adminkey;
             this.msgtbl = {
                 villager: [],
                 werewolf: [],
                 sharer: []
             };
-            setting.name = name;
             this.initialize();
         }
         ;
+        Object.defineProperty(Village.prototype, "name", {
+            get: function () {
+                return this.setting.name;
+            },
+            enumerable: true,
+            configurable: true
+        });
         Village.prototype.initialize = function () {
             this.state = "廃村";
             this.phase = "吊";
@@ -183,7 +189,7 @@ var Zinro;
         ;
         Village.prototype.initSocket = function () {
             var $$ = this;
-            $$.io = ios.of("/villages/" + this.name);
+            $$.io = ios.of("/villages/" + this.id);
             $$.io.on("connection", function (socket) {
                 function send_messages(room) {
                     socket.join(room);
@@ -264,6 +270,7 @@ var Zinro;
         ;
         Village.prototype.getStatus = function (zinrokey) {
             return {
+                id: this.id,
                 name: this.name,
                 state: this.state,
                 phase: this.phase,
@@ -355,14 +362,15 @@ var Zinro;
             });
         };
         ;
-        Country.prototype.addVillage = function (name, admin, setting) {
-            if (this.namemap.hasOwnProperty(name)) {
+        Country.prototype.addVillage = function (adminkey, setting) {
+            if (this.namemap.hasOwnProperty(setting.name)) {
                 return null;
             }
             var country = this;
-            var village = new Village(country, name, admin, setting);
+            var id = this.villages.length.toString();
+            var village = new Village(id, country, setting, adminkey);
             this.villages.push(village);
-            this.namemap[name] = village;
+            this.namemap[setting.name] = village;
             return village;
         };
         Country.prototype.deleteVillage = function (name) {
@@ -390,30 +398,30 @@ var Zinro;
         return Country;
     }());
     var country = new Country("人狼国");
-    var setting = {
-        name: "",
-        daytime: 180,
-        nighttime: 60,
-        hangtime: 10,
-        bitetime: 10,
-        endtime: 600,
+    country.addVillage("", {
+        name: "素人村",
+        daytime: 180, nighttime: 60, hangtime: 10, bitetime: 10, endtime: 600,
         rolenum: {
-            村人: 1,
-            人狼: 1,
-            占い師: 1,
-            狂人: 1,
-            狩人: 0,
-            霊能者: 0,
-            共有者: 0,
-            妖狐: 0
+            村人: 1, 人狼: 1, 占い師: 1, 狂人: 1, 狩人: 0, 霊能者: 0, 共有者: 0, 妖狐: 0
         },
-        firstnpc: true,
-        roledeath: true,
-        zombie: true
-    };
-    country.addVillage("素人村", "", setting);
-    country.addVillage("一般村", "", setting);
-    country.addVillage("玄人村", "", setting);
+        firstnpc: true, roledeath: true, zombie: true
+    });
+    country.addVillage("", {
+        name: "一般村",
+        daytime: 180, nighttime: 60, hangtime: 10, bitetime: 10, endtime: 600,
+        rolenum: {
+            村人: 1, 人狼: 1, 占い師: 1, 狂人: 1, 狩人: 0, 霊能者: 0, 共有者: 0, 妖狐: 0
+        },
+        firstnpc: true, roledeath: true, zombie: true
+    });
+    country.addVillage("", {
+        name: "玄人村",
+        daytime: 180, nighttime: 60, hangtime: 10, bitetime: 10, endtime: 600,
+        rolenum: {
+            村人: 1, 人狼: 1, 占い師: 1, 狂人: 1, 狩人: 0, 霊能者: 0, 共有者: 0, 妖狐: 0
+        },
+        firstnpc: true, roledeath: true, zombie: true
+    });
 })(Zinro || (Zinro = {}));
 app.get('/', function (request, response) {
     response.render('pages/zinro');
